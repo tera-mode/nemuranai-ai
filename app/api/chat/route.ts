@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { generateCharacterResponse } from '@/lib/claude';
-import { authOptions } from '../auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth-options';
 import { createThread, addMessageToThread, generateThreadTitle } from '@/lib/thread-actions';
 
 export async function POST(request: NextRequest) {

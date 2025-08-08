@@ -6,7 +6,6 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: false,
   },
-  swcMinify: true,
   experimental: {
     optimizePackageImports: ['lucide-react'],
   },
