@@ -56,8 +56,17 @@ export function CharacterCard({ character, isSelected, onClick }: CharacterCardP
     >
       <div className="flex items-center gap-3">
         {/* アバター */}
-        <div className="text-3xl">
-          {getRaceEmoji(character.race)}
+        <div className="relative">
+          {character.profileImageUrl ? (
+            <div 
+              className="w-12 h-12 rounded-full bg-cover bg-center border-2 border-white/30"
+              style={{ backgroundImage: `url(${character.profileImageUrl})` }}
+            />
+          ) : (
+            <div className="text-3xl">
+              {getRaceEmoji(character.race)}
+            </div>
+          )}
         </div>
         
         {/* キャラクター情報 */}

@@ -17,7 +17,8 @@
       "Bash(git remote add:*)",
       "Bash(git push:*)",
       "Bash(vercel:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "WebFetch(domain:nemuranai-h2xixrq2r-tera-modes-projects.vercel.app)"
     ],
     "deny": []
   }

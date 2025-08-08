@@ -46,6 +46,7 @@ export interface AICharacter {
   };
   createdAt: Date;
   isActive: boolean;
+  profileImageUrl?: string; // プロフィール画像URL
 }
 
 // チャットスレッド

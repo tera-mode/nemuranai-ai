@@ -15,6 +15,7 @@ export interface CreateCharacterData {
   };
   backstory: string;
   userId: string;
+  profileImageUrl?: string;
 }
 
 // キャラクター作成

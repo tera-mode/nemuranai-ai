@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { CharacterCustomizer } from '@/components/CharacterCustomizer';
 import { CharacterPreview } from '@/components/CharacterPreview';
+import { ImageUpload } from '@/components/ImageUpload';
 import { createCharacter } from '@/lib/character-actions';
 import { CharacterRace, PersonalityType, BusinessDomain } from '@/types/database';
 
@@ -25,6 +26,7 @@ export default function CreateCharacterPage() {
     },
     backstory: ''
   });
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
 
   if (status === 'loading') {
     return (
@@ -51,7 +53,8 @@ export default function CreateCharacterPage() {
     try {
       await createCharacter({
         ...characterData,
-        userId
+        userId,
+        profileImageUrl: profileImageUrl || undefined
       });
       
       alert('AI社員が誕生しました！🎉');
@@ -76,15 +79,62 @@ export default function CreateCharacterPage() {
           </p>
         </div>
         
-        <div className="grid lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
+        <div className="grid lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
           {/* キャラクターカスタマイザー */}
-          <CharacterCustomizer
-            characterData={characterData}
-            onUpdate={setCharacterData}
-          />
+          <div className="lg:col-span-1">
+            <CharacterCustomizer
+              characterData={characterData}
+              onUpdate={setCharacterData}
+            />
+          </div>
           
-          {/* プレビュー */}
-          <CharacterPreview character={characterData} />
+          {/* プレビューと画像アップロード */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* プロフィール画像 */}
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6">
+              <h3 className="text-xl font-bold text-white mb-4 text-center">
+                プロフィール画像
+              </h3>
+              <div className="flex justify-center">
+                <ImageUpload
+                  userId={session?.user?.id || session?.user?.email || ''}
+                  currentImageUrl={profileImageUrl || undefined}
+                  onImageUpload={setProfileImageUrl}
+                  onImageRemove={() => setProfileImageUrl(null)}
+                />
+              </div>
+            </div>
+            
+            {/* プレビュー */}
+            <CharacterPreview character={characterData} />
+          </div>
+          
+          {/* 右側の説明エリア */}
+          <div className="lg:col-span-1">
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6">
+              <h3 className="text-xl font-bold text-white mb-4">
+                💡 キャラクター作成のヒント
+              </h3>
+              <div className="space-y-4 text-white/80 text-sm">
+                <div>
+                  <h4 className="font-semibold text-white">🎭 性格の選び方</h4>
+                  <p>ビジネスシーンでの相談相手として、どんな性格が良いか考えてみましょう。</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-white">🏢 専門分野</h4>
+                  <p>あなたの業務に最も関連する分野を選ぶと、より実用的なアドバイスが得られます。</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-white">📸 プロフィール画像</h4>
+                  <p>お気に入りのイラストやアバター画像をアップロードして、よりパーソナルな体験を。</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-white">📝 バックストーリー</h4>
+                  <p>キャラクターの背景を設定することで、より一貫性のある会話が楽しめます。</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         
         <div className="text-center mt-8">
