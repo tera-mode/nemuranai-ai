@@ -15,4 +15,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+// Firebase Storage の初期化をより明示的に
+console.log('Firebase Storage Bucket:', firebaseConfig.storageBucket);
 export const storage = getStorage(app);

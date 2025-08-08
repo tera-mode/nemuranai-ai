@@ -96,9 +96,17 @@ export default function DashboardPage() {
       <div className="min-h-screen relative flex items-center justify-center">
         <div 
           className="fixed inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: 'url(/bg001.jpg)' }}
+          style={{ 
+            backgroundImage: selectedCharacter?.profileImageUrl 
+              ? `url(${selectedCharacter.profileImageUrl})` 
+              : 'url(/bg001.jpg)' 
+          }}
         />
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px]" />
+        <div className={`fixed inset-0 backdrop-blur-[2px] ${
+          selectedCharacter?.profileImageUrl 
+            ? 'bg-black/60' 
+            : 'bg-black/40'
+        }`} />
         <div className="relative z-10 bg-black/40 backdrop-blur-md rounded-2xl p-6 border border-white/20">
           <div className="text-white text-2xl drop-shadow-lg">読み込み中...</div>
         </div>
@@ -112,13 +120,26 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen relative">
-      {/* 背景画像 */}
+      {/* 背景画像 - 選択されたキャラクターまたはデフォルト */}
       <div 
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: 'url(/bg001.jpg)' }}
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat transition-all duration-1000 ease-in-out"
+        style={{ 
+          backgroundImage: selectedCharacter?.profileImageUrl 
+            ? `url(${selectedCharacter.profileImageUrl})` 
+            : 'url(/bg001.jpg)' 
+        }}
       />
-      {/* 背景オーバーレイ */}
-      <div className="fixed inset-0 bg-black/30 backdrop-blur-[2px]" />
+      {/* 背景オーバーレイ - キャラクター画像の場合は強めに */}
+      <div className={`fixed inset-0 backdrop-blur-[2px] transition-all duration-1000 ${
+        selectedCharacter?.profileImageUrl 
+          ? 'bg-gradient-to-br from-black/40 via-black/60 to-black/80' 
+          : 'bg-black/30'
+      }`} />
+      
+      {/* キャラクター画像用の追加グラデーションオーバーレイ */}
+      {selectedCharacter?.profileImageUrl && (
+        <div className="fixed inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent transition-opacity duration-1000" />
+      )}
       
       {/* コンテンツ */}
       <div className="relative z-10 container mx-auto px-4 py-8">

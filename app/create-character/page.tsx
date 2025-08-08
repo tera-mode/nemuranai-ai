@@ -7,6 +7,7 @@ import { CharacterCustomizer } from '@/components/CharacterCustomizer';
 import { CharacterPreview } from '@/components/CharacterPreview';
 import { ImageUpload } from '@/components/ImageUpload';
 import { createCharacter } from '@/lib/character-actions';
+import { generateCharacterImage } from '@/lib/image-generation';
 import { CharacterRace, PersonalityType, BusinessDomain } from '@/types/database';
 
 export default function CreateCharacterPage() {
@@ -27,6 +28,7 @@ export default function CreateCharacterPage() {
     backstory: ''
   });
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
   if (status === 'loading') {
     return (
@@ -40,6 +42,23 @@ export default function CreateCharacterPage() {
     router.push('/auth/signin');
     return null;
   }
+
+  const handleGenerateImage = async () => {
+    const userId = session?.user?.id || session?.user?.email;
+    if (!userId) return;
+
+    setIsGeneratingImage(true);
+    try {
+      const generatedImageUrl = await generateCharacterImage(characterData, userId);
+      setProfileImageUrl(generatedImageUrl);
+      alert('アニメ風プロフィール画像を生成しました！🎨');
+    } catch (error) {
+      alert('画像生成に失敗しました。もう一度お試しください。');
+      console.error('画像生成エラー:', error);
+    } finally {
+      setIsGeneratingImage(false);
+    }
+  };
 
   const handleCreateCharacter = async () => {
     const userId = session?.user?.id || session?.user?.email;
@@ -95,13 +114,34 @@ export default function CreateCharacterPage() {
               <h3 className="text-xl font-bold text-white mb-4 text-center">
                 プロフィール画像
               </h3>
-              <div className="flex justify-center">
+              <div className="flex justify-center mb-4">
                 <ImageUpload
                   userId={session?.user?.id || session?.user?.email || ''}
                   currentImageUrl={profileImageUrl || undefined}
                   onImageUpload={setProfileImageUrl}
                   onImageRemove={() => setProfileImageUrl(null)}
                 />
+              </div>
+              
+              {/* AI画像生成ボタン */}
+              <div className="text-center">
+                <button
+                  onClick={handleGenerateImage}
+                  disabled={isGeneratingImage || !characterData.name.trim()}
+                  className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-lg font-medium hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 text-sm"
+                >
+                  {isGeneratingImage ? (
+                    <span className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      AI画像生成中...
+                    </span>
+                  ) : (
+                    '🎨 AI画像生成'
+                  )}
+                </button>
+                <p className="text-white/60 text-xs mt-2">
+                  キャラクター情報からアニメ風画像を自動生成
+                </p>
               </div>
             </div>
             
@@ -125,8 +165,8 @@ export default function CreateCharacterPage() {
                   <p>あなたの業務に最も関連する分野を選ぶと、より実用的なアドバイスが得られます。</p>
                 </div>
                 <div>
-                  <h4 className="font-semibold text-white">📸 プロフィール画像</h4>
-                  <p>お気に入りのイラストやアバター画像をアップロードして、よりパーソナルな体験を。</p>
+                  <h4 className="font-semibold text-white">🎨 AI画像生成</h4>
+                  <p>キャラクター設定から自動でアニメ風プロフィール画像を生成できます。手動アップロードも可能です。</p>
                 </div>
                 <div>
                   <h4 className="font-semibold text-white">📝 バックストーリー</h4>

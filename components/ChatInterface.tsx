@@ -181,8 +181,18 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
     <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 h-[600px] flex flex-col">
       {/* ヘッダー */}
       <div className="flex items-center gap-3 pb-4 border-b border-white/20">
-        <div className="text-4xl">
-          {getRaceEmoji(character.race)}
+        {/* プロフィール画像またはアバター */}
+        <div className="flex-shrink-0">
+          {character.profileImageUrl ? (
+            <div 
+              className="w-12 h-12 rounded-full bg-cover bg-center border-2 border-white/30"
+              style={{ backgroundImage: `url(${character.profileImageUrl})` }}
+            />
+          ) : (
+            <div className="text-4xl">
+              {getRaceEmoji(character.race)}
+            </div>
+          )}
         </div>
         <div className="flex-1">
           <h3 className="text-xl font-bold text-white">{character.name}</h3>
@@ -210,10 +220,26 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
         {messages.map((message) => (
           <div
             key={message.id}
-            className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+            className={`flex items-start gap-3 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
           >
+            {/* AI社員のアバター */}
+            {message.type === 'assistant' && (
+              <div className="flex-shrink-0">
+                {character.profileImageUrl ? (
+                  <div 
+                    className="w-8 h-8 rounded-full bg-cover bg-center border border-white/30"
+                    style={{ backgroundImage: `url(${character.profileImageUrl})` }}
+                  />
+                ) : (
+                  <div className="text-2xl">
+                    {getRaceEmoji(character.race)}
+                  </div>
+                )}
+              </div>
+            )}
+            
             <div
-              className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+              className={`max-w-[70%] rounded-2xl px-4 py-3 ${
                 message.type === 'user'
                   ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
                   : 'bg-white/20 text-white border border-white/30'
@@ -242,7 +268,21 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
         ))}
         
         {isLoading && (
-          <div className="flex justify-start">
+          <div className="flex items-start gap-3 justify-start">
+            {/* AI社員のアバター */}
+            <div className="flex-shrink-0">
+              {character.profileImageUrl ? (
+                <div 
+                  className="w-8 h-8 rounded-full bg-cover bg-center border border-white/30"
+                  style={{ backgroundImage: `url(${character.profileImageUrl})` }}
+                />
+              ) : (
+                <div className="text-2xl">
+                  {getRaceEmoji(character.race)}
+                </div>
+              )}
+            </div>
+            
             <div className="bg-white/20 rounded-2xl px-4 py-3 border border-white/30">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce"></div>
