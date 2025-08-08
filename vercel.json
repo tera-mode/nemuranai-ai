@@ -1,0 +1,17 @@
+{
+  "projectSettings": {
+    "name": "nemuranai-ai",
+    "framework": "nextjs"
+  },
+  "env": {
+    "ANTHROPIC_API_KEY": "@anthropic_api_key",
+    "NEXTAUTH_SECRET": "@nextauth_secret",
+    "GOOGLE_CLIENT_ID": "@google_client_id", 
+    "GOOGLE_CLIENT_SECRET": "@google_client_secret"
+  },
+  "functions": {
+    "app/api/chat/route.ts": {
+      "maxDuration": 30
+    }
+  }
+}
