@@ -1,5 +1,5 @@
 import { db } from '@/lib/firebase';
-import { collection, addDoc, getDocs, query, where, doc, getDoc, Timestamp, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { AICharacter, CharacterRace, PersonalityType, BusinessDomain } from '@/types/database';
 
 export interface CreateCharacterData {
@@ -30,7 +30,7 @@ export async function createCharacter(data: CreateCharacterData): Promise<string
         empathy: Math.floor(Math.random() * 20) + 70,
         accuracy: Math.floor(Math.random() * 20) + 70,
       },
-      createdAt: serverTimestamp(),
+      createdAt: new Date(),
       isActive: true,
     };
 
