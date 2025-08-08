@@ -114,20 +114,20 @@ export async function saveGeneratedImageToStorage(
     console.log('Download URL obtained:', downloadURL);
     
     return downloadURL;
-  } catch (error) {
+  } catch (error: any) {
     console.error('生成画像保存エラー:', error);
     
     // より詳細なエラー情報をログ出力
-    if (error.customData) {
+    if (error?.customData) {
       console.error('Custom data:', error.customData);
     }
-    if (error.status_) {
+    if (error?.status_) {
       console.error('Status:', error.status_);
     }
-    if (error._baseMessage) {
+    if (error?._baseMessage) {
       console.error('Base message:', error._baseMessage);
     }
     
-    throw new Error(`生成画像の保存に失敗しました: ${error.message || 'Unknown error'}`);
+    throw new Error(`生成画像の保存に失敗しました: ${error?.message || 'Unknown error'}`);
   }
 }

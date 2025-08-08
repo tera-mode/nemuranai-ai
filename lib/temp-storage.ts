@@ -17,11 +17,15 @@ const CLEANUP_INTERVAL = 7 * 24 * 60 * 60 * 1000; // 7日間
 // クリーンアップ関数
 export function cleanupOldImages() {
   const now = Date.now();
-  for (const [key, data] of tempStorage.entries()) {
+  const keysToDelete: string[] = [];
+  
+  tempStorage.forEach((data, key) => {
     if (now - data.timestamp > CLEANUP_INTERVAL) {
-      tempStorage.delete(key);
+      keysToDelete.push(key);
     }
-  }
+  });
+  
+  keysToDelete.forEach(key => tempStorage.delete(key));
 }
 
 // 画像IDを生成
@@ -87,14 +91,26 @@ export function deleteTempImage(imageId: string): boolean {
 
 // デバッグ用：現在のストレージ状況
 export function getStorageStats() {
-  return {
-    totalImages: tempStorage.size,
-    images: Array.from(tempStorage.entries()).map(([id, data]) => ({
+  const images: Array<{
+    id: string;
+    userId: string;
+    characterId: string;
+    timestamp: Date;
+    size: number;
+  }> = [];
+  
+  tempStorage.forEach((data, id) => {
+    images.push({
       id,
       userId: data.userId,
       characterId: data.characterId,
       timestamp: new Date(data.timestamp),
       size: data.base64.length
-    }))
+    });
+  });
+  
+  return {
+    totalImages: tempStorage.size,
+    images
   };
 }
