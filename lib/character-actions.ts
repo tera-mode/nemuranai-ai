@@ -21,8 +21,15 @@ export interface CreateCharacterData {
 // キャラクター作成
 export async function createCharacter(data: CreateCharacterData): Promise<string> {
   try {
+    // undefinedフィールドを除去してcharacterDataを構築
     const characterData: Omit<AICharacter, 'id'> = {
-      ...data,
+      name: data.name,
+      race: data.race,
+      personality: data.personality,
+      domain: data.domain,
+      appearance: data.appearance,
+      backstory: data.backstory,
+      userId: data.userId,
       level: 1,
       experience: 0,
       stats: {
@@ -34,6 +41,11 @@ export async function createCharacter(data: CreateCharacterData): Promise<string
       createdAt: new Date(),
       isActive: true,
     };
+
+    // profileImageUrlが存在する場合のみ追加
+    if (data.profileImageUrl) {
+      characterData.profileImageUrl = data.profileImageUrl;
+    }
 
     const docRef = await addDoc(collection(db, 'characters'), characterData);
     return docRef.id;

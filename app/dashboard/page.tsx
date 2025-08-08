@@ -93,8 +93,15 @@ export default function DashboardPage() {
 
   if (status === 'loading' || isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center">
-        <div className="text-white text-2xl">読み込み中...</div>
+      <div className="min-h-screen relative flex items-center justify-center">
+        <div 
+          className="fixed inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: 'url(/bg001.jpg)' }}
+        />
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px]" />
+        <div className="relative z-10 bg-black/40 backdrop-blur-md rounded-2xl p-6 border border-white/20">
+          <div className="text-white text-2xl drop-shadow-lg">読み込み中...</div>
+        </div>
       </div>
     );
   }
@@ -104,15 +111,24 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen relative">
+      {/* 背景画像 */}
+      <div 
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url(/bg001.jpg)' }}
+      />
+      {/* 背景オーバーレイ */}
+      <div className="fixed inset-0 bg-black/30 backdrop-blur-[2px]" />
+      
+      {/* コンテンツ */}
+      <div className="relative z-10 container mx-auto px-4 py-8">
         {/* ヘッダー */}
         <header className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-4xl font-bold text-white mb-2">
+          <div className="bg-black/40 backdrop-blur-md rounded-2xl p-4">
+            <h1 className="text-4xl font-bold text-white mb-2 drop-shadow-lg">
               AI社員は眠らない 💤
             </h1>
-            <p className="text-white/80">
+            <p className="text-white/90 drop-shadow">
               おかえりなさい、{session.user?.name}さん
             </p>
           </div>
@@ -120,13 +136,13 @@ export default function DashboardPage() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/create-character')}
-              className="bg-gradient-to-r from-green-500 to-blue-500 text-white px-4 py-2 rounded-lg font-medium hover:scale-105 transition-transform"
+              className="bg-gradient-to-r from-green-500/90 to-blue-500/90 backdrop-blur-md text-white px-4 py-2 rounded-lg font-medium hover:scale-105 transition-transform border border-white/20 drop-shadow-lg"
             >
               + 新しいAI社員
             </button>
             <button
               onClick={() => signOut()}
-              className="bg-white/20 text-white px-4 py-2 rounded-lg font-medium hover:bg-white/30 transition-colors"
+              className="bg-white/20 backdrop-blur-md text-white px-4 py-2 rounded-lg font-medium hover:bg-white/30 transition-colors border border-white/20 drop-shadow-lg"
             >
               ログアウト
             </button>
@@ -136,11 +152,11 @@ export default function DashboardPage() {
         <div className="grid lg:grid-cols-4 gap-6">
           {/* キャラクター一覧 */}
           <div className="lg:col-span-1">
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6">
-              <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <div className="bg-white/15 backdrop-blur-md rounded-2xl p-6 border border-white/20 shadow-2xl">
+              <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2 drop-shadow">
                 <span>👥</span>
                 AI社員一覧
-                <span className="text-sm font-normal text-white/60">({characters.length})</span>
+                <span className="text-sm font-normal text-white/80">({characters.length})</span>
               </h2>
               
               <div className="space-y-3">
@@ -183,8 +199,8 @@ export default function DashboardPage() {
                 refreshTrigger={refreshTrigger}
               />
             ) : (
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 h-full flex items-center justify-center">
-                <p className="text-white/60 text-sm text-center">
+              <div className="bg-white/15 backdrop-blur-md rounded-2xl p-6 h-full flex items-center justify-center border border-white/20 shadow-2xl">
+                <p className="text-white/80 text-sm text-center drop-shadow">
                   AI社員を選択すると<br />会話履歴が表示されます
                 </p>
               </div>
@@ -201,20 +217,20 @@ export default function DashboardPage() {
                 onMessageSent={handleMessageSent}
               />
             ) : (
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 text-center h-[600px] flex items-center justify-center">
+              <div className="bg-white/15 backdrop-blur-md rounded-2xl p-8 text-center h-[600px] flex items-center justify-center border border-white/20 shadow-2xl">
                 <div>
                   <div className="text-8xl mb-6">😴</div>
-                  <h3 className="text-2xl font-bold text-white mb-2">
+                  <h3 className="text-2xl font-bold text-white mb-2 drop-shadow-lg">
                     AI社員を選択してください
                   </h3>
-                  <p className="text-white/80 mb-6">
+                  <p className="text-white/90 mb-6 drop-shadow">
                     左のリストからAI社員を選んでチャットを開始しましょう
                   </p>
                   
                   {characters.length === 0 && (
-                    <div className="bg-white/10 rounded-xl p-6 max-w-md mx-auto">
-                      <h4 className="font-bold text-white mb-3">💡 はじめ方</h4>
-                      <ol className="text-left text-white/80 text-sm space-y-2">
+                    <div className="bg-black/30 backdrop-blur-sm rounded-xl p-6 max-w-md mx-auto border border-white/20">
+                      <h4 className="font-bold text-white mb-3 drop-shadow">💡 はじめ方</h4>
+                      <ol className="text-left text-white/90 text-sm space-y-2 drop-shadow">
                         <li>1. 「+ 新しいAI社員」ボタンをクリック</li>
                         <li>2. お好みのキャラクターを作成</li>
                         <li>3. ダッシュボードに戻ってチャット開始！</li>
@@ -228,11 +244,11 @@ export default function DashboardPage() {
         </div>
 
         {/* フッター */}
-        <footer className="text-center mt-12 text-white/60 text-sm">
-          <p>
+        <footer className="text-center mt-12 text-white/80 text-sm bg-black/20 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+          <p className="drop-shadow">
             AI社員は眠らない - あなただけのAI社員プラットフォーム
           </p>
-          <p className="mt-1">
+          <p className="mt-1 drop-shadow">
             Powered by Claude AI & Next.js
           </p>
         </footer>
