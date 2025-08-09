@@ -10,6 +10,14 @@ export function HamburgerMenu() {
 
   const menuItems = [
     {
+      icon: '✨',
+      label: '新しいAI社員を作成',
+      onClick: () => {
+        router.push('/create-character');
+        setIsOpen(false);
+      }
+    },
+    {
       icon: '👤',
       label: 'マイページ',
       onClick: () => {
