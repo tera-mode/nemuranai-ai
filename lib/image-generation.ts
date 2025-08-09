@@ -97,8 +97,42 @@ function generateCompositionPrompt(): string {
     cinematic lighting, depth of field background`;
 }
 
+// 日本語を英語に翻訳する関数（クライアントサイド用）
+async function translateToEnglish(text: string): Promise<string> {
+  if (!text || text.trim() === '') return '';
+  
+  // 既に英語の場合はそのまま返す（簡易的な判定）
+  if (!/[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/.test(text)) {
+    return text;
+  }
+  
+  try {
+    const response = await fetch('/api/translate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ text })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Translation API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const translatedText = data.translatedText || text;
+    
+    console.log('🔤 Backstory Translation:', { original: text, translated: translatedText });
+    return translatedText;
+    
+  } catch (error) {
+    console.error('❌ Backstory translation failed:', error);
+    return text; // フォールバック
+  }
+}
+
 // 改善されたアニメ風プロンプト生成
-export function generateAnimePrompt(character: any): string {
+export async function generateAnimePrompt(character: any): Promise<string> {
   const raceFeature = raceFeatures[character.race] || raceFeatures.human;
   const genderFeature = genderFeatures[character.gender] || genderFeatures.female;
   const ageFeature = ageFeatures[character.age] || ageFeatures.adult;
@@ -110,8 +144,9 @@ export function generateAnimePrompt(character: any): string {
 
   const basePrompt = `anime style, highly detailed, beautiful ${character.name || 'AI assistant'}`;
   
-  // バックストーリーを前半に強く反映させる
-  const backstoryPrefix = character.backstory ? `${character.backstory}, ` : '';
+  // バックストーリーを翻訳して前半に強く反映させる
+  const translatedBackstory = character.backstory ? await translateToEnglish(character.backstory) : '';
+  const backstoryPrefix = translatedBackstory ? `${translatedBackstory}, ` : '';
   
   // 肌色と年齢を最初に強調する
   const primaryFeatures = `${skinToneFeature}, ${ageFeature}, ${genderFeature}`;
@@ -120,7 +155,9 @@ export function generateAnimePrompt(character: any): string {
   
   const fullPrompt = `${basePrompt}, ${backstoryPrefix}${primaryFeatures}, ${secondaryFeatures}, ${characterPersonality}, ${storyElements}, ${composition}`;
   
-  console.log('Generated prompt:', fullPrompt);
+  console.log('Generated prompt (with translated backstory):', fullPrompt);
+  console.log('Original backstory:', character.backstory);
+  console.log('Translated backstory:', translatedBackstory);
   return fullPrompt;
 }
 
@@ -131,7 +168,7 @@ export async function generateCharacterImage(
   characterId?: string
 ): Promise<string> {
   try {
-    const prompt = generateAnimePrompt(character);
+    const prompt = await generateAnimePrompt(character);
     
     const response = await fetch('/api/generate-image', {
       method: 'POST',

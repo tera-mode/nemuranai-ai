@@ -82,6 +82,7 @@ export interface ChatMessage {
   type: 'user' | 'assistant';
   timestamp: Date;
   isMarkdown?: boolean; // マークダウン形式かどうか
+  images?: string[]; // 画像URL配列
 }
 
 // Brain AI知識ベース

@@ -41,8 +41,11 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
-              <div className="text-3xl">💤</div>
-              <h1 className="text-2xl font-bold text-slate-900">AI社員は眠らない</h1>
+              <img 
+                src="/nemuranai-ai_logo.png" 
+                alt="AI社員は眠らない ロゴ" 
+                className="h-10 w-auto"
+              />
             </div>
             <button 
               onClick={handleGetStarted}
@@ -118,8 +121,11 @@ export default function Home() {
       <footer className="bg-slate-900 text-white py-12 mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="flex items-center justify-center space-x-3 mb-4">
-            <div className="text-2xl">💤</div>
-            <span className="text-xl font-semibold">AI社員は眠らない</span>
+            <img 
+              src="/nemuranai-ai_logo.png" 
+              alt="AI社員は眠らない ロゴ" 
+              className="h-8 w-auto brightness-0 invert"
+            />
           </div>
           <p className="text-slate-400">
             Powered by Claude AI & Next.js

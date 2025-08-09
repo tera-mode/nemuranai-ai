@@ -109,6 +109,14 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
               {children}
             </td>
           ),
+          img: ({ src, alt }) => (
+            <img 
+              src={src} 
+              alt={alt} 
+              className="max-w-full h-auto rounded-lg shadow-lg my-4 border border-white/20"
+              loading="lazy"
+            />
+          ),
         }}
       >
         {content}

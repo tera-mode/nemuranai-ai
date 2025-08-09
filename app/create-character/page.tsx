@@ -15,7 +15,7 @@ export default function CreateCharacterPage() {
     name: '',
     gender: 'female' as CharacterGender,
     race: 'human' as CharacterRace,
-    age: 'adult' as CharacterAge,
+    age: 'young' as CharacterAge,
     skinTone: 'medium' as SkinTone,
     personality: 'genki' as PersonalityType,
     domain: 'secretary' as BusinessDomain,

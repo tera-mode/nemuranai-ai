@@ -123,9 +123,13 @@ function HomePageContent() {
       {/* ヘッダー */}
       <header className="relative z-50 flex justify-between items-center p-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white drop-shadow-lg">
-            AI社員は眠らない 💤
-          </h1>
+          <div className="flex items-center gap-3 mb-2">
+            <img 
+              src="/nemuranai-ai_logo.png" 
+              alt="AI社員は眠らない ロゴ" 
+              className="h-16 w-auto drop-shadow-lg"
+            />
+          </div>
           <p className="text-white/90 text-sm drop-shadow">
             おかえりなさい、{session.user?.name}さん
           </p>

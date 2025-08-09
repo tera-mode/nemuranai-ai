@@ -21,6 +21,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // デバッグ用: 最終的な画像生成パラメータをコンソールに出力
+    console.log('👤 === CHARACTER IMAGE API REQUEST DEBUG ===');
+    console.log('📝 Positive Prompt:', prompt);
+    console.log('❌ Negative Prompt:', 'lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, multiple girls, realistic, 3d');
+    console.log('👤 User ID:', userId);
+    console.log('🆔 Character ID:', characterId);
+    console.log('📐 Image Size: 1024x1024');
+    console.log('⚙️ CFG Scale: 7, Steps: 30, Style: anime');
+    console.log('⏰ Request Time:', new Date().toISOString());
+    console.log('👤 ============================================');
+
     // Stability AI APIに画像生成リクエスト
     const stabilityResponse = await fetch(
       'https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image',
@@ -62,7 +73,16 @@ export async function POST(request: NextRequest) {
 
     const responseData = await stabilityResponse.json();
     
+    // デバッグ用: API応答をログ出力
+    console.log('✅ === STABILITY API RESPONSE DEBUG ===');
+    console.log('📊 Response Status:', stabilityResponse.status);
+    console.log('🖼️ Artifacts Count:', responseData.artifacts?.length || 0);
+    console.log('💰 Credits Used:', responseData.credits_consumed || 'unknown');
+    console.log('⏱️ Generation Time:', new Date().toISOString());
+    
     if (!responseData.artifacts || responseData.artifacts.length === 0) {
+      console.log('❌ No artifacts in response');
+      console.log('✅ ====================================');
       return NextResponse.json(
         { error: '画像が生成されませんでした' },
         { status: 500 }
@@ -73,7 +93,8 @@ export async function POST(request: NextRequest) {
     const imageBase64 = responseData.artifacts[0].base64;
     const imageBuffer = Buffer.from(imageBase64, 'base64');
 
-    console.log('Image generated successfully, size:', imageBuffer.length);
+    console.log('📏 Generated Image Size:', imageBuffer.length, 'bytes');
+    console.log('✅ ====================================');
 
     // まず Firebase Storage に保存を試行
     let imageUrl: string;

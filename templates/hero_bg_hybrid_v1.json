@@ -1,0 +1,31 @@
+{
+  "useCase": "hero_bg",
+  "steps": [
+    {
+      "tool": "prompt.build",
+      "with": {
+        "system": "Hero background scene; {job.brief.theme} style; wide aspect ratio; no text or logos.",
+        "inject": ["{brand.styleTokens.tone}", "{job.brief.elements}"]
+      }
+    },
+    {
+      "tool": "stability.generate",
+      "with": {
+        "aspect_ratio": "{job.brief.aspectRatio}",
+        "output": "hero_bg.png",
+        "negative": "text,logos,watermarks,UI elements,buttons,{job.brief.avoid}"
+      },
+      "repeat": 1
+    },
+    {
+      "tool": "post.sharp",
+      "with": {
+        "formats": ["png", "webp", "jpg"],
+        "maxKB": 800,
+        "variants": ["palette_shift"],
+        "width": 1920,
+        "height": 1080
+      }
+    }
+  ]
+}

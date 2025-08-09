@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
       message,
       characterId,
       userId,
+      threadId: currentThreadId,
       context,
       useMarkdown: true, // マークダウン形式で生成
     });
@@ -65,16 +66,18 @@ export async function POST(request: NextRequest) {
       currentThreadId,
       characterId,
       userId,
-      response,
+      response.content,
       'assistant',
-      true // マークダウン形式
+      true, // マークダウン形式
+      response.images // 画像配列
     );
 
     // スレッドタイトルを自動生成
     const titleGenerated = await generateThreadTitle(currentThreadId);
 
     return NextResponse.json({
-      message: response,
+      message: response.content,
+      images: response.images,
       threadId: currentThreadId,
       titleGenerated, // タイトルが生成されたかどうか
       success: true,

@@ -1,0 +1,40 @@
+{
+  "useCase": "logo",
+  "steps": [
+    {
+      "tool": "prompt.build",
+      "with": {
+        "system": "Abstract logomark symbol; no text; professional clean design; vector-like; modern.",
+        "inject": ["{brand.styleTokens.tone} style", "{brand.styleTokens.palette[0]} {brand.styleTokens.palette[1]} {brand.styleTokens.palette[2]} colors", "{job.brief.symbolHint}"]
+      }
+    },
+    {
+      "tool": "stability.generate",
+      "with": {
+        "aspect_ratio": "{job.brief.layout}",
+        "output": "symbol.png",
+        "negative": "text,letters,watermark,dark,gloomy,realistic photo"
+      },
+      "repeat": 1
+    },
+    {
+      "tool": "compose.canvas",
+      "with": {
+        "text": "{brand.name}",
+        "font": "{brand.styleTokens.fonts[0]}",
+        "size": 220,
+        "color": "{brand.styleTokens.palette[0]}",
+        "width": 1200,
+        "height": 400
+      }
+    },
+    {
+      "tool": "post.sharp",
+      "with": {
+        "formats": ["png", "webp"],
+        "maxKB": 500,
+        "variants": ["palette_shift"]
+      }
+    }
+  ]
+}

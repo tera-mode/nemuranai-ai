@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from 'react';
 import { AICharacter, ChatThread, ChatMessage } from '@/types/database';
 import { MarkdownRenderer } from '@/components/MarkdownRenderer';
 import { getThreadMessages } from '@/lib/thread-actions';
+import { detectDesignRequest } from '@/lib/design-detection';
+import { DesignJobFlow } from '@/components/DesignJobFlow';
 
 interface ChatInterfaceProps {
   character: AICharacter;
@@ -18,6 +20,12 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [showDesignFlow, setShowDesignFlow] = useState(false);
+  const [designRequest, setDesignRequest] = useState<{ useCase: any; brief: string } | null>(null);
+  const [sessionNotFoundLogged, setSessionNotFoundLogged] = useState(false);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const designCompletedRef = useRef<boolean>(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -32,10 +40,12 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
     const loadMessages = async () => {
       if (!thread) {
         setMessages([]);
+        designCompletedRef.current = false;
         return;
       }
 
       try {
+        designCompletedRef.current = false;
         const threadMessages = await getThreadMessages(thread.id);
         setMessages(threadMessages);
       } catch (error) {
@@ -47,10 +57,152 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
     loadMessages();
   }, [thread]);
 
+  // デザイン生成状況をポーリング
+  useEffect(() => {
+    if (!thread || character.domain !== 'designer') return;
+    
+    // 最新のメッセージに「AIが作業中です...」が含まれているかチェック
+    const lastMessage = messages[messages.length - 1];
+    const isGeneratingMessage = lastMessage && 
+      lastMessage.type === 'assistant' && 
+      lastMessage.content.includes('AIが作業中です...') &&
+      !lastMessage.content.includes('完成しました');
+    
+    if (isGeneratingMessage && !pollingIntervalRef.current && !designCompletedRef.current) {
+      console.log('🎯 Starting design status polling...');
+      let errorCount = 0;
+      const maxErrors = 3;
+      
+      pollingIntervalRef.current = setInterval(async () => {
+        try {
+          console.log('🔄 Polling design session status for thread:', thread.id);
+          const response = await fetch(`/api/design-session/${thread.id}`);
+          
+          if (response.ok) {
+            const sessionData = await response.json();
+            console.log('📊 Session status:', sessionData);
+            
+            if (sessionData.status === 'reviewing' && sessionData.generatedImages?.length > 0) {
+              console.log('✅ Design completed! Refreshing messages...');
+              
+              // 完了フラグを設定してポーリング停止
+              designCompletedRef.current = true;
+              if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+                pollingIntervalRef.current = null;
+              }
+              if (pollingTimeoutRef.current) {
+                clearTimeout(pollingTimeoutRef.current);
+                pollingTimeoutRef.current = null;
+              }
+              
+              // デザイン完了 - メッセージを再読み込み
+              const updatedMessages = await getThreadMessages(thread.id);
+              setMessages(updatedMessages);
+              
+              // スレッドリストも更新
+              if (onMessageSent) {
+                onMessageSent();
+              }
+            } else if (sessionData.status === 'failed') {
+              console.log('❌ Design failed! Refreshing messages...');
+              
+              // 完了フラグを設定してポーリング停止
+              designCompletedRef.current = true;
+              if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+                pollingIntervalRef.current = null;
+              }
+              if (pollingTimeoutRef.current) {
+                clearTimeout(pollingTimeoutRef.current);
+                pollingTimeoutRef.current = null;
+              }
+              
+              // デザイン失敗 - メッセージを再読み込み
+              const updatedMessages = await getThreadMessages(thread.id);
+              setMessages(updatedMessages);
+            }
+          } else if (response.status === 404) {
+            errorCount++;
+            // 複数回エラーが発生した場合のみポーリングを停止
+            if (errorCount >= maxErrors) {
+              if (!sessionNotFoundLogged) {
+                console.log(`🚫 Design session not found after ${maxErrors} attempts, stopping poll`);
+                setSessionNotFoundLogged(true);
+              }
+              if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+                pollingIntervalRef.current = null;
+              }
+              if (pollingTimeoutRef.current) {
+                clearTimeout(pollingTimeoutRef.current);
+                pollingTimeoutRef.current = null;
+              }
+            } else {
+              console.log(`⚠️ Design session not found (attempt ${errorCount}/${maxErrors}), retrying...`);
+            }
+          } else {
+            // リセット成功した場合のエラーカウント
+            errorCount = 0;
+          }
+        } catch (error) {
+          console.error('Polling error:', error);
+        }
+      }, 3000); // 3秒ごとにポーリング
+      
+      // 2分後にタイムアウト
+      pollingTimeoutRef.current = setTimeout(() => {
+        console.log('⏰ Polling timeout, stopping');
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+        pollingTimeoutRef.current = null;
+      }, 120000);
+    } else if (!isGeneratingMessage && pollingIntervalRef.current) {
+      // 生成メッセージがなくなったらポーリング停止
+      console.log('🛑 No generating message, stopping poll');
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+      if (pollingTimeoutRef.current) {
+        clearTimeout(pollingTimeoutRef.current);
+        pollingTimeoutRef.current = null;
+      }
+    }
+  }, [messages, thread?.id, character.domain, onMessageSent]);
+
+  // クリーンアップ
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+      if (pollingTimeoutRef.current) {
+        clearTimeout(pollingTimeoutRef.current);
+        pollingTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
     const messageText = input.trim();
+    
+    // 古いデザインフローは無効化 - 新しい対話型システムを使用
+    // const designDetection = detectDesignRequest(messageText, character.domain);
+    // 
+    // if (designDetection.detected && designDetection.useCase) {
+    //   setDesignRequest({
+    //     useCase: designDetection.useCase,
+    //     brief: messageText
+    //   });
+    //   setShowDesignFlow(true);
+    //   setInput('');
+    //   return;
+    // }
+    
     setInput('');
     setIsLoading(true);
 
@@ -256,6 +408,25 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
               ) : (
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
               )}
+              
+              {/* 画像表示エリア */}
+              {message.images && message.images.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {message.images.map((imageUrl, index) => (
+                    <div key={index} className="relative">
+                      <img 
+                        src={imageUrl} 
+                        alt={`Generated image ${index + 1}`}
+                        className="max-w-full h-auto rounded-lg shadow-lg border border-white/20"
+                        loading="lazy"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className={`text-xs mt-2 ${
                 message.type === 'user' ? 'text-white/80' : 'text-white/60'
               }`}>
@@ -323,6 +494,33 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
           Enterで送信 / Shift+Enterで改行
         </div>
       </div>
+
+      {/* 古いDesign Job Flow Modalは無効化 */}
+      {/* {showDesignFlow && designRequest && (
+        <DesignJobFlow
+          character={character}
+          useCase={designRequest.useCase}
+          brief={designRequest.brief}
+          onClose={() => {
+            setShowDesignFlow(false);
+            setDesignRequest(null);
+          }}
+          onJobCreated={(jobId) => {
+            // Add a system message about job creation
+            const jobMessage: ChatMessage = {
+              id: `job-${Date.now()}`,
+              threadId: thread?.id || '',
+              characterId: character.id,
+              userId: 'system',
+              content: `✨ デザインジョブを作成しました！進行状況は右上のメニューから確認できます。\n\nジョブID: ${jobId}`,
+              type: 'assistant',
+              timestamp: new Date(),
+              isMarkdown: false
+            };
+            setMessages(prev => [...prev, jobMessage]);
+          }}
+        />
+      )} */}
     </div>
   );
 }

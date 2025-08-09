@@ -156,7 +156,8 @@ export async function addMessageToThread(
   userId: string,
   content: string,
   type: 'user' | 'assistant',
-  isMarkdown: boolean = false
+  isMarkdown: boolean = false,
+  images?: string[]
 ): Promise<string> {
   try {
     // メッセージ追加
@@ -168,6 +169,7 @@ export async function addMessageToThread(
       type,
       timestamp: new Date(),
       isMarkdown,
+      ...(images && images.length > 0 && { images }),
     };
 
     const docRef = await addDoc(collection(db, 'messages'), messageData);

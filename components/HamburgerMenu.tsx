@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import { signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { DesignJobManager } from '@/components/DesignJobManager';
 
 export function HamburgerMenu() {
   const [isOpen, setIsOpen] = useState(false);
+  const [showDesignJobs, setShowDesignJobs] = useState(false);
   const router = useRouter();
 
   const menuItems = [
@@ -14,6 +16,14 @@ export function HamburgerMenu() {
       label: '新しいAI社員を作成',
       onClick: () => {
         router.push('/create-character');
+        setIsOpen(false);
+      }
+    },
+    {
+      icon: '🎨',
+      label: 'デザインジョブ管理',
+      onClick: () => {
+        setShowDesignJobs(true);
         setIsOpen(false);
       }
     },
@@ -92,6 +102,12 @@ export function HamburgerMenu() {
           </div>
         </>
       )}
+
+      {/* Design Job Manager */}
+      <DesignJobManager
+        isOpen={showDesignJobs}
+        onClose={() => setShowDesignJobs(false)}
+      />
     </div>
   );
 }
