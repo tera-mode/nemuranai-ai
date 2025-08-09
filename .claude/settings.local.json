@@ -19,7 +19,15 @@
       "Bash(vercel:*)",
       "Bash(git commit:*)",
       "WebFetch(domain:nemuranai-h2xixrq2r-tera-modes-projects.vercel.app)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(mv:*)",
+      "Bash(rmdir:*)",
+      "WebFetch(domain:console.firebase.google.com)",
+      "Bash(rm:*)",
+      "Bash(tasklist:*)",
+      "Bash(npm ci:*)",
+      "Bash(npm cache clean:*)",
+      "Bash(yarn install)"
     ],
     "deny": []
   }

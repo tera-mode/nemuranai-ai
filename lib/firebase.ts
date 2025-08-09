@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, enableNetwork, disableNetwork } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
@@ -14,7 +14,20 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+
+// Firestoreの初期化（キャッシュを無効にする設定）
 export const db = getFirestore(app);
+
+// デバッグ用：ネットワーク無効化/有効化関数をエクスポート
+export const refreshFirestore = async () => {
+  try {
+    await disableNetwork(db);
+    await enableNetwork(db);
+    console.log('Firestore network refreshed');
+  } catch (error) {
+    console.error('Error refreshing Firestore network:', error);
+  }
+};
 
 // Firebase Storage の初期化をより明示的に
 console.log('Firebase Storage Bucket:', firebaseConfig.storageBucket);

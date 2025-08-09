@@ -182,6 +182,48 @@ export async function addMessageToThread(
   }
 }
 
+// 最近のスレッド取得
+export async function getRecentThreads(userId: string, limitCount: number = 5): Promise<ChatThread[]> {
+  try {
+    const q = query(
+      collection(db, 'threads'),
+      where('userId', '==', userId),
+      orderBy('updatedAt', 'desc'),
+      limit(limitCount)
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const threads: ChatThread[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      const createdAt = data.createdAt instanceof Timestamp 
+        ? data.createdAt.toDate() 
+        : data.createdAt instanceof Date 
+        ? data.createdAt 
+        : new Date(data.createdAt);
+      
+      const updatedAt = data.updatedAt instanceof Timestamp 
+        ? data.updatedAt.toDate() 
+        : data.updatedAt instanceof Date 
+        ? data.updatedAt 
+        : new Date(data.updatedAt);
+      
+      threads.push({
+        id: doc.id,
+        ...data,
+        createdAt,
+        updatedAt
+      } as ChatThread);
+    });
+    
+    return threads;
+  } catch (error) {
+    console.error('Error fetching recent threads:', error);
+    return [];
+  }
+}
+
 // スレッド情報更新（メッセージ数、最後のメッセージ、更新日時）
 async function updateThreadInfo(threadId: string, lastMessage: string): Promise<void> {
   try {

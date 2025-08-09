@@ -16,7 +16,7 @@ export default function SignInPage() {
   useEffect(() => {
     getSession().then((session) => {
       if (session) {
-        router.push('/dashboard');
+        router.push('/home');
       }
     });
   }, [router]);
@@ -42,7 +42,7 @@ export default function SignInPage() {
         
         // 少し遅延を入れてからリダイレクト
         setTimeout(() => {
-          window.location.href = '/dashboard';
+          window.location.href = '/home';
         }, 1500);
       } else {
         setError('認証に失敗しました。もう一度お試しください。');
@@ -170,7 +170,7 @@ export default function SignInPage() {
 
           {/* Google Sign In */}
           <button
-            onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
+            onClick={() => signIn('google', { callbackUrl: '/home' })}
             className="w-full bg-white border border-slate-300 text-slate-700 py-3 px-4 rounded-lg font-semibold hover:bg-slate-50 flex items-center justify-center gap-3 transition-colors"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">

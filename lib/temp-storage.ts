@@ -8,8 +8,13 @@ interface TempImageData {
   characterId: string;
 }
 
-// メモリ内の一時ストレージ
-const tempStorage = new Map<string, TempImageData>();
+// メモリ内の一時ストレージ - グローバルオブジェクトに保存して開発中の再起動から保護
+declare global {
+  var tempImageStorage: Map<string, TempImageData> | undefined;
+}
+
+const tempStorage = globalThis.tempImageStorage ?? new Map<string, TempImageData>();
+if (process.env.NODE_ENV === 'development') globalThis.tempImageStorage = tempStorage;
 
 // 7日後に自動削除（開発中は長めに設定）
 const CLEANUP_INTERVAL = 7 * 24 * 60 * 60 * 1000; // 7日間

@@ -77,6 +77,14 @@ export async function generateCharacterImage(
     }
 
     const data = await response.json();
+    
+    // 開発環境でbase64Fallbackがあれば表示用に使用するが、保存は一時URLを使用
+    if (data.base64Fallback && process.env.NODE_ENV === 'development') {
+      console.log('Base64 fallback available, but using temp URL for database storage');
+      // Base64は画面表示用、実際の保存には一時URLを使用
+      return data.imageUrl; // 一時URL（/api/temp-image/xxx）を返す
+    }
+    
     return data.imageUrl;
   } catch (error) {
     console.error('画像生成エラー:', error);
@@ -91,6 +99,9 @@ export async function saveGeneratedImageToStorage(
   characterId: string
 ): Promise<string> {
   try {
+    // Firebase Storage設定をデバッグ
+    console.log('Storage instance:', storage.app.options);
+    
     // 手動アップロードと同じパス構造を使用
     const timestamp = Date.now();
     const fileName = `generated-character-${characterId}-${timestamp}.png`;
@@ -100,6 +111,7 @@ export async function saveGeneratedImageToStorage(
     console.log('Image buffer size:', imageBuffer.length);
     
     const storageRef = ref(storage, filePath);
+    console.log('Storage ref created:', storageRef.bucket, storageRef.fullPath);
     
     // シンプルなメタデータに変更
     const metadata = {

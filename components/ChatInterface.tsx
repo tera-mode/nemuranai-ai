@@ -10,9 +10,10 @@ interface ChatInterfaceProps {
   thread: ChatThread | null;
   onThreadUpdate?: (thread: ChatThread) => void;
   onMessageSent?: () => void; // メッセージ送信後のコールバック
+  fullScreen?: boolean; // フルスクリーンレイアウトフラグ
 }
 
-export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent }: ChatInterfaceProps) {
+export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent, fullScreen = false }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -163,7 +164,7 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
 
   if (!thread) {
     return (
-      <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 h-[600px] flex items-center justify-center">
+      <div className={`bg-white/10 backdrop-blur-md ${fullScreen ? '' : 'rounded-2xl'} p-6 ${fullScreen ? 'h-full' : 'h-[600px]'} flex items-center justify-center`}>
         <div className="text-center">
           <div className="text-8xl mb-6">💬</div>
           <h3 className="text-2xl font-bold text-white mb-2">
@@ -178,9 +179,9 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
   }
 
   return (
-    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 h-[600px] flex flex-col">
+    <div className={`${fullScreen ? 'fixed inset-0 pt-20 flex flex-col' : 'bg-white/10 backdrop-blur-md rounded-2xl p-6 h-[600px] flex flex-col'}`}>
       {/* ヘッダー */}
-      <div className="flex items-center gap-3 pb-4 border-b border-white/20">
+      <div className={`flex items-center gap-3 pb-4 border-b border-white/20 ${fullScreen ? 'px-6 bg-black/20 backdrop-blur-md' : ''}`}>
         {/* プロフィール画像またはアバター */}
         <div className="flex-shrink-0">
           {character.profileImageUrl ? (
@@ -207,7 +208,7 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
       </div>
 
       {/* メッセージエリア */}
-      <div className="flex-1 overflow-y-auto py-4 space-y-4">
+      <div className={`flex-1 overflow-y-auto py-4 space-y-4 ${fullScreen ? 'px-6' : ''}`}>
         {messages.length === 0 && !isLoading && (
           <div className="text-center py-8">
             <div className="text-6xl mb-4">👋</div>
@@ -298,7 +299,7 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
       </div>
 
       {/* 入力エリア */}
-      <div className="pt-4 border-t border-white/20">
+      <div className={`pt-4 border-t border-white/20 ${fullScreen ? 'px-6 pb-6 bg-black/20 backdrop-blur-md' : ''}`}>
         <div className="flex gap-3">
           <textarea
             value={input}

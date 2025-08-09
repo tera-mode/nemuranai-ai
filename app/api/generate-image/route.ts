@@ -94,15 +94,29 @@ export async function POST(request: NextRequest) {
       storeTempImage(tempImageId, imageBase64, userId, characterId);
       imageUrl = `/api/temp-image/${tempImageId}`;
       console.log('Using temp storage fallback, ID:', tempImageId);
+      
+      // 開発中はデバッグ情報を出力
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Temp storage debug - saved image with ID:', tempImageId);
+        console.log('Image will be available at:', imageUrl);
+      }
     }
 
-    return NextResponse.json({
+    // 開発環境では確実に画像を表示するためBase64も返す
+    const apiResponse: any = {
       success: true,
       imageUrl,
       prompt,
       isTemp: imageUrl.startsWith('/api/temp-image/'),
       isBase64: false
-    });
+    };
+
+    // 一時ストレージ使用時は安全のためBase64データも返す
+    if (imageUrl.startsWith('/api/temp-image/') && process.env.NODE_ENV === 'development') {
+      apiResponse.base64Fallback = `data:image/png;base64,${imageBase64}`;
+    }
+
+    return NextResponse.json(apiResponse);
 
   } catch (error) {
     console.error('画像生成APIエラー:', error);

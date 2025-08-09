@@ -77,7 +77,7 @@ export default function CreateCharacterPage() {
       });
       
       alert('AI社員が誕生しました！🎉');
-      router.push('/dashboard');
+      router.push('/home');
     } catch (error) {
       alert('エラーが発生しました。もう一度お試しください。');
       console.error(error);
@@ -188,10 +188,10 @@ export default function CreateCharacterPage() {
           
           <div className="mt-4">
             <button
-              onClick={() => router.push('/dashboard')}
+              onClick={() => router.push('/home')}
               className="text-white/80 hover:text-white underline"
             >
-              ← ダッシュボードに戻る
+              ← ホームに戻る
             </button>
           </div>
         </div>
