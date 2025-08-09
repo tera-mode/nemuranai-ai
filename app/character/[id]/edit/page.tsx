@@ -4,9 +4,10 @@ import { useSession } from 'next-auth/react';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { getCharacterById, updateCharacter, deleteCharacter } from '@/lib/character-actions';
-import { AICharacter } from '@/types/database';
+import { AICharacter, CharacterRace, CharacterGender, CharacterAge, SkinTone, PersonalityType, BusinessDomain } from '@/types/database';
 import { PageHeader } from '@/components/PageHeader';
 import { HamburgerMenu } from '@/components/HamburgerMenu';
+import { getRaceLabel, getGenderLabel, getAgeLabel, getSkinToneLabel, getPersonalityLabel, getDomainLabel, getThemeColorOptions } from '@/lib/translations';
 
 export default function EditCharacterPage() {
   const { data: session, status } = useSession();
@@ -20,13 +21,17 @@ export default function EditCharacterPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    race: '',
-    personality: '',
-    domain: '',
+    gender: 'female' as CharacterGender,
+    race: 'human' as CharacterRace,
+    age: 'adult' as CharacterAge,
+    skinTone: 'medium' as SkinTone,
+    personality: 'genki' as PersonalityType,
+    domain: 'secretary' as BusinessDomain,
     backstory: '',
     appearance: {
-      hairColor: '',
-      eyeColor: ''
+      themeColor: '#4ecdc4',
+      outfit: 'business',
+      accessories: []
     }
   });
 
@@ -39,13 +44,17 @@ export default function EditCharacterPage() {
         setCharacter(characterData);
         setFormData({
           name: characterData.name,
+          gender: characterData.gender || 'female',
           race: characterData.race,
+          age: characterData.age || 'adult',
+          skinTone: characterData.skinTone || 'medium',
           personality: characterData.personality,
           domain: characterData.domain,
           backstory: characterData.backstory || '',
           appearance: {
-            hairColor: characterData.appearance?.hairColor || '',
-            eyeColor: characterData.appearance?.eyeColor || ''
+            themeColor: characterData.appearance?.themeColor || '#4ecdc4',
+            outfit: characterData.appearance?.outfit || 'business',
+            accessories: characterData.appearance?.accessories || []
           }
         });
       }
@@ -66,15 +75,14 @@ export default function EditCharacterPage() {
 
       await updateCharacter(characterId, {
         name: formData.name,
-        race: formData.race as any,
-        personality: formData.personality as any,
-        domain: formData.domain as any,
+        gender: formData.gender,
+        race: formData.race,
+        age: formData.age,
+        skinTone: formData.skinTone,
+        personality: formData.personality,
+        domain: formData.domain,
         backstory: formData.backstory,
-        appearance: {
-          ...formData.appearance,
-          outfit: character?.appearance?.outfit || '',
-          accessories: character?.appearance?.accessories || []
-        }
+        appearance: formData.appearance
       });
 
       router.push(`/character/${characterId}/threads`);
@@ -201,39 +209,99 @@ export default function EditCharacterPage() {
                   />
                 </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-white/90 text-sm font-medium mb-2">性別</label>
+                    <select
+                      value={formData.gender}
+                      onChange={(e) => setFormData(prev => ({ ...prev, gender: e.target.value as CharacterGender }))}
+                      className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white focus:border-purple-400 focus:outline-none [&>option]:bg-gray-800 [&>option]:text-white"
+                      required
+                    >
+                      <option value="male">{getGenderLabel('male')}</option>
+                      <option value="female">{getGenderLabel('female')}</option>
+                      <option value="non-binary">{getGenderLabel('non-binary')}</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-white/90 text-sm font-medium mb-2">年齢層</label>
+                    <select
+                      value={formData.age}
+                      onChange={(e) => setFormData(prev => ({ ...prev, age: e.target.value as CharacterAge }))}
+                      className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white focus:border-purple-400 focus:outline-none [&>option]:bg-gray-800 [&>option]:text-white"
+                      required
+                    >
+                      <option value="young">{getAgeLabel('young')}</option>
+                      <option value="adult">{getAgeLabel('adult')}</option>
+                      <option value="elder">{getAgeLabel('elder')}</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block text-white/90 text-sm font-medium mb-2">種族</label>
+                  <label className="block text-white/90 text-sm font-medium mb-2">タイプ</label>
                   <select
                     value={formData.race}
-                    onChange={(e) => setFormData(prev => ({ ...prev, race: e.target.value }))}
-                    className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white focus:border-purple-400 focus:outline-none"
+                    onChange={(e) => setFormData(prev => ({ ...prev, race: e.target.value as CharacterRace }))}
+                    className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white focus:border-purple-400 focus:outline-none [&>option]:bg-gray-800 [&>option]:text-white"
                     required
                   >
-                    <option value="">選択してください</option>
-                    <option value="dragon">ドラゴン 🐲</option>
-                    <option value="elf">エルフ 🧝‍♀️</option>
-                    <option value="android">アンドロイド 🤖</option>
-                    <option value="ghost">ゴースト 👻</option>
-                    <option value="mage">メイジ 🧙‍♀️</option>
-                    <option value="genius">天才少女 👶</option>
+                    <option value="human">{getRaceLabel('human')}</option>
+                    <option value="dog">{getRaceLabel('dog')}</option>
+                    <option value="cat">{getRaceLabel('cat')}</option>
+                    <option value="dragon">{getRaceLabel('dragon')}</option>
+                    <option value="elf">{getRaceLabel('elf')}</option>
+                    <option value="android">{getRaceLabel('android')}</option>
+                    <option value="ghost">{getRaceLabel('ghost')}</option>
+                    <option value="mage">{getRaceLabel('mage')}</option>
+                    <option value="knight">{getRaceLabel('knight')}</option>
+                    <option value="ninja">{getRaceLabel('ninja')}</option>
                   </select>
                 </div>
 
                 <div>
+                  <label className="block text-white/90 text-sm font-medium mb-2">肌の色</label>
+                  <select
+                    value={formData.skinTone}
+                    onChange={(e) => setFormData(prev => ({ ...prev, skinTone: e.target.value as SkinTone }))}
+                    className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white focus:border-purple-400 focus:outline-none [&>option]:bg-gray-800 [&>option]:text-white"
+                    required
+                  >
+                    <option value="pinkish">{getSkinToneLabel('pinkish')}</option>
+                    <option value="fair">{getSkinToneLabel('fair')}</option>
+                    <option value="light">{getSkinToneLabel('light')}</option>
+                    <option value="medium">{getSkinToneLabel('medium')}</option>
+                    <option value="olive">{getSkinToneLabel('olive')}</option>
+                    <option value="brown">{getSkinToneLabel('brown')}</option>
+                    <option value="dark">{getSkinToneLabel('dark')}</option>
+                    <option value="deep">{getSkinToneLabel('deep')}</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* 性格と専門分野 */}
+            <div className="bg-white/15 backdrop-blur-md rounded-2xl p-6 border border-white/20 mb-6">
+              <h2 className="text-lg font-bold text-white mb-4 drop-shadow-lg">性格と専門分野</h2>
+              
+              <div className="space-y-4">
+                <div>
                   <label className="block text-white/90 text-sm font-medium mb-2">性格</label>
                   <select
                     value={formData.personality}
-                    onChange={(e) => setFormData(prev => ({ ...prev, personality: e.target.value }))}
-                    className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white focus:border-purple-400 focus:outline-none"
+                    onChange={(e) => setFormData(prev => ({ ...prev, personality: e.target.value as PersonalityType }))}
+                    className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white focus:border-purple-400 focus:outline-none [&>option]:bg-gray-800 [&>option]:text-white"
                     required
                   >
-                    <option value="">選択してください</option>
-                    <option value="tsundere">ツンデレ</option>
-                    <option value="kuudere">クーデレ</option>
-                    <option value="genki">元気っ子</option>
-                    <option value="yandere">ヤンデレ</option>
-                    <option value="oneesan">お姉さんタイプ</option>
-                    <option value="imouto">妹タイプ</option>
+                    <option value="tsundere">{getPersonalityLabel('tsundere')}</option>
+                    <option value="kuudere">{getPersonalityLabel('kuudere')}</option>
+                    <option value="genki">{getPersonalityLabel('genki')}</option>
+                    <option value="yandere">{getPersonalityLabel('yandere')}</option>
+                    <option value="oneesan">{getPersonalityLabel('oneesan')}</option>
+                    <option value="imouto">{getPersonalityLabel('imouto')}</option>
+                    <option value="landmine">{getPersonalityLabel('landmine')}</option>
+                    <option value="wild">{getPersonalityLabel('wild')}</option>
                   </select>
                 </div>
 
@@ -241,17 +309,18 @@ export default function EditCharacterPage() {
                   <label className="block text-white/90 text-sm font-medium mb-2">専門分野</label>
                   <select
                     value={formData.domain}
-                    onChange={(e) => setFormData(prev => ({ ...prev, domain: e.target.value }))}
-                    className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white focus:border-purple-400 focus:outline-none"
+                    onChange={(e) => setFormData(prev => ({ ...prev, domain: e.target.value as BusinessDomain }))}
+                    className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white focus:border-purple-400 focus:outline-none [&>option]:bg-gray-800 [&>option]:text-white"
                     required
                   >
-                    <option value="">選択してください</option>
-                    <option value="sales">営業・セールス 💼</option>
-                    <option value="marketing">マーケティング 📱</option>
-                    <option value="support">カスタマーサポート 🛡️</option>
-                    <option value="analysis">データ分析 📊</option>
-                    <option value="secretary">秘書・アシスタント 📋</option>
-                    <option value="strategy">戦略・企画 🎯</option>
+                    <option value="sales">{getDomainLabel('sales')}</option>
+                    <option value="marketing">{getDomainLabel('marketing')}</option>
+                    <option value="support">{getDomainLabel('support')}</option>
+                    <option value="analysis">{getDomainLabel('analysis')}</option>
+                    <option value="secretary">{getDomainLabel('secretary')}</option>
+                    <option value="strategy">{getDomainLabel('strategy')}</option>
+                    <option value="designer">{getDomainLabel('designer')}</option>
+                    <option value="writer">{getDomainLabel('writer')}</option>
                   </select>
                 </div>
               </div>
@@ -261,47 +330,30 @@ export default function EditCharacterPage() {
             <div className="bg-white/15 backdrop-blur-md rounded-2xl p-6 border border-white/20 mb-6">
               <h2 className="text-lg font-bold text-white mb-4 drop-shadow-lg">外見設定</h2>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-white/90 text-sm font-medium mb-2">髪色</label>
-                  <select
-                    value={formData.appearance.hairColor}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      appearance: { ...prev.appearance, hairColor: e.target.value }
-                    }))}
-                    className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white focus:border-purple-400 focus:outline-none"
-                  >
-                    <option value="">選択してください</option>
-                    <option value="black">黒髪</option>
-                    <option value="brown">茶髪</option>
-                    <option value="blonde">金髪</option>
-                    <option value="silver">銀髪</option>
-                    <option value="blue">青髪</option>
-                    <option value="red">赤髪</option>
-                    <option value="purple">紫髪</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-white/90 text-sm font-medium mb-2">瞳色</label>
-                  <select
-                    value={formData.appearance.eyeColor}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      appearance: { ...prev.appearance, eyeColor: e.target.value }
-                    }))}
-                    className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white focus:border-purple-400 focus:outline-none"
-                  >
-                    <option value="">選択してください</option>
-                    <option value="brown">茶色</option>
-                    <option value="black">黒色</option>
-                    <option value="blue">青色</option>
-                    <option value="green">緑色</option>
-                    <option value="red">赤色</option>
-                    <option value="purple">紫色</option>
-                    <option value="gold">金色</option>
-                  </select>
+              <div>
+                <label className="block text-white/90 text-sm font-medium mb-3">テーマカラー</label>
+                <div className="grid grid-cols-4 gap-3">
+                  {getThemeColorOptions().map((color) => (
+                    <button
+                      key={color.value}
+                      type="button"
+                      onClick={() => setFormData(prev => ({
+                        ...prev,
+                        appearance: { ...prev.appearance, themeColor: color.value }
+                      }))}
+                      className={`flex items-center gap-2 p-3 rounded-lg border transition-all ${
+                        formData.appearance.themeColor === color.value
+                          ? 'border-white bg-white/20'
+                          : 'border-white/30 bg-white/10 hover:bg-white/15'
+                      }`}
+                    >
+                      <div
+                        className="w-6 h-6 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: color.value }}
+                      />
+                      <span className="text-white text-xs">{color.label}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>

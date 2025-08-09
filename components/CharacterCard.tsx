@@ -11,12 +11,16 @@ interface CharacterCardProps {
 export function CharacterCard({ character, isSelected, onClick }: CharacterCardProps) {
   const getRaceEmoji = (race: string) => {
     const raceEmojis: Record<string, string> = {
+      human: '👤',
       dragon: '🐲',
       elf: '🧝‍♀️',
       android: '🤖',
       ghost: '👻',
       mage: '🧙‍♀️',
-      genius: '👶'
+      dog: '🐕',
+      cat: '🐱',
+      knight: '⚔️',
+      ninja: '🥷'
     };
     return raceEmojis[race] || '👤';
   };
@@ -28,7 +32,9 @@ export function CharacterCard({ character, isSelected, onClick }: CharacterCardP
       support: '🛡️',
       analysis: '📊',
       secretary: '📋',
-      strategy: '🎯'
+      strategy: '🎯',
+      designer: '🎨',
+      writer: '✍️'
     };
     return domainEmojis[domain] || '💼';
   };
@@ -40,7 +46,9 @@ export function CharacterCard({ character, isSelected, onClick }: CharacterCardP
       support: 'サポート',
       analysis: 'データ分析',
       secretary: '秘書',
-      strategy: '戦略企画'
+      strategy: '戦略企画',
+      designer: 'デザイナー',
+      writer: 'ライター'
     };
     return domainLabels[domain] || domain;
   };

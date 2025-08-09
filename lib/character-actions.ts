@@ -1,15 +1,17 @@
 import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, query, where, doc, getDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
-import { AICharacter, CharacterRace, PersonalityType, BusinessDomain } from '@/types/database';
+import { AICharacter, CharacterRace, CharacterGender, CharacterAge, SkinTone, PersonalityType, BusinessDomain } from '@/types/database';
 
 export interface CreateCharacterData {
   name: string;
+  gender: CharacterGender;
   race: CharacterRace;
+  age: CharacterAge;
+  skinTone: SkinTone;
   personality: PersonalityType;
   domain: BusinessDomain;
   appearance: {
-    hairColor: string;
-    eyeColor: string;
+    themeColor: string;
     outfit: string;
     accessories: string[];
   };
@@ -24,7 +26,10 @@ export async function createCharacter(data: CreateCharacterData): Promise<string
     // undefinedフィールドを除去してcharacterDataを構築
     const characterData: Omit<AICharacter, 'id'> = {
       name: data.name,
+      gender: data.gender,
       race: data.race,
+      age: data.age,
+      skinTone: data.skinTone,
       personality: data.personality,
       domain: data.domain,
       appearance: data.appearance,

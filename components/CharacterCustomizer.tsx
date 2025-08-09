@@ -1,165 +1,304 @@
 'use client';
 
-import { CharacterRace, PersonalityType, BusinessDomain } from '@/types/database';
+import { CharacterRace, CharacterGender, CharacterAge, SkinTone, PersonalityType, BusinessDomain } from '@/types/database';
+import { getRaceLabel, getGenderLabel, getAgeLabel, getSkinToneLabel, getPersonalityLabel, getDomainLabel, getThemeColorOptions } from '@/lib/translations';
+
+interface CharacterData {
+  name: string;
+  gender: CharacterGender;
+  race: CharacterRace;
+  age: CharacterAge;
+  skinTone: SkinTone;
+  personality: PersonalityType;
+  domain: BusinessDomain;
+  appearance: {
+    themeColor: string;
+    outfit: string;
+    accessories: string[];
+  };
+  backstory: string;
+}
 
 interface CharacterCustomizerProps {
-  characterData: any;
-  onUpdate: (data: any) => void;
+  characterData: CharacterData;
+  onUpdate: (data: CharacterData) => void;
 }
 
 export function CharacterCustomizer({ characterData, onUpdate }: CharacterCustomizerProps) {
-  const raceOptions = [
-    { value: 'dragon', label: '🐲 ドラゴン族', description: '古代の知恵と炎の力を持つ' },
-    { value: 'elf', label: '🧝‍♀️ エルフ', description: '魔法と自然の力を操る' },
-    { value: 'android', label: '🤖 アンドロイド', description: '高い処理能力と学習機能' },
-    { value: 'ghost', label: '👻 地縛霊', description: '人間の心を深く理解する' },
-    { value: 'mage', label: '🧙‍♀️ 魔法使い', description: '魔法で効率を極限まで高める' },
-    { value: 'genius', label: '👶 天才児', description: 'IQ300の純粋な発想力' }
-  ];
+  const themeColorOptions = getThemeColorOptions();
 
-  const personalityOptions = [
-    { value: 'tsundere', label: 'ツンデレ', description: '素直になれない可愛らしさ' },
-    { value: 'kuudere', label: 'クーデレ', description: 'クールだけど実は優しい' },
-    { value: 'genki', label: '元気っ子', description: '明るく前向きなエネルギー' },
-    { value: 'serious', label: '真面目', description: '責任感が強く信頼できる' },
-    { value: 'mysterious', label: 'ミステリアス', description: '謎めいた魅力を持つ' },
-    { value: 'innocent', label: '純真', description: '純粋で心優しい性格' }
-  ];
+  const updateData = (field: keyof CharacterData, value: any) => {
+    onUpdate({
+      ...characterData,
+      [field]: value
+    });
+  };
 
-  const domainOptions = [
-    { value: 'sales', label: '💼 営業', description: '売上を伸ばすプロフェッショナル' },
-    { value: 'marketing', label: '📱 マーケティング', description: 'ブランドを輝かせる専門家' },
-    { value: 'support', label: '🛡️ サポート', description: 'お客様第一の守護者' },
-    { value: 'analysis', label: '📊 データ分析', description: 'データから真実を見抜く' },
-    { value: 'secretary', label: '📋 秘書', description: '完璧な段取りのスペシャリスト' },
-    { value: 'strategy', label: '🎯 戦略企画', description: '未来を描く戦略家' }
-  ];
+  const updateAppearance = (field: keyof CharacterData['appearance'], value: any) => {
+    onUpdate({
+      ...characterData,
+      appearance: {
+        ...characterData.appearance,
+        [field]: value
+      }
+    });
+  };
 
   return (
-    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 space-y-6">
-      <h2 className="text-2xl font-bold text-white mb-4">キャラクター設定</h2>
-      
-      {/* 名前入力 */}
-      <div>
-        <label className="block text-white font-medium mb-2">AI社員の名前</label>
-        <input
-          type="text"
-          value={characterData.name}
-          onChange={(e) => onUpdate({ ...characterData, name: e.target.value })}
-          placeholder="例: ミスティ、ドラゴ、リトルなど"
-          className="w-full px-4 py-2 rounded-lg bg-white/20 text-white placeholder-white/60 border border-white/30 focus:border-purple-400 focus:outline-none"
-        />
-      </div>
-
-      {/* 種族選択 */}
-      <div>
-        <label className="block text-white font-medium mb-2">種族</label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {raceOptions.map((race) => (
-            <button
-              key={race.value}
-              onClick={() => onUpdate({ ...characterData, race: race.value })}
-              className={`p-3 rounded-lg border-2 transition-all text-left ${
-                characterData.race === race.value
-                  ? 'border-purple-400 bg-purple-500/30'
-                  : 'border-white/30 bg-white/10 hover:border-purple-300'
-              }`}
-            >
-              <div className="text-white font-medium">{race.label}</div>
-              <div className="text-white/70 text-xs">{race.description}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 性格選択 */}
-      <div>
-        <label className="block text-white font-medium mb-2">性格</label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {personalityOptions.map((personality) => (
-            <button
-              key={personality.value}
-              onClick={() => onUpdate({ ...characterData, personality: personality.value })}
-              className={`p-3 rounded-lg border-2 transition-all text-left ${
-                characterData.personality === personality.value
-                  ? 'border-pink-400 bg-pink-500/30'
-                  : 'border-white/30 bg-white/10 hover:border-pink-300'
-              }`}
-            >
-              <div className="text-white font-medium">{personality.label}</div>
-              <div className="text-white/70 text-xs">{personality.description}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 専門分野選択 */}
-      <div>
-        <label className="block text-white font-medium mb-2">専門分野</label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {domainOptions.map((domain) => (
-            <button
-              key={domain.value}
-              onClick={() => onUpdate({ ...characterData, domain: domain.value })}
-              className={`p-3 rounded-lg border-2 transition-all text-left ${
-                characterData.domain === domain.value
-                  ? 'border-blue-400 bg-blue-500/30'
-                  : 'border-white/30 bg-white/10 hover:border-blue-300'
-              }`}
-            >
-              <div className="text-white font-medium">{domain.label}</div>
-              <div className="text-white/70 text-xs">{domain.description}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 外見カスタマイズ */}
-      <div>
-        <label className="block text-white font-medium mb-2">外見設定</label>
-        <div className="grid grid-cols-2 gap-4">
+    <div className="space-y-6">
+      {/* 基本情報 */}
+      <div className="bg-white/15 backdrop-blur-md rounded-2xl p-6 border border-white/20">
+        <h2 className="text-lg font-bold text-white mb-4 drop-shadow-lg">基本情報</h2>
+        
+        <div className="space-y-4">
+          {/* 名前 */}
           <div>
-            <label className="block text-white/80 text-sm mb-1">髪の色</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={characterData.appearance.hairColor}
-                onChange={(e) => onUpdate({
-                  ...characterData,
-                  appearance: { ...characterData.appearance, hairColor: e.target.value }
-                })}
-                className="w-12 h-10 rounded border border-white/30"
-              />
-              <span className="text-white/60 text-sm">{characterData.appearance.hairColor}</span>
+            <label className="block text-white/90 text-sm font-medium mb-2">名前</label>
+            <input
+              type="text"
+              value={characterData.name}
+              onChange={(e) => updateData('name', e.target.value)}
+              className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/60 focus:border-purple-400 focus:outline-none"
+              placeholder="AI社員の名前"
+              required
+            />
+          </div>
+
+          {/* 性別 */}
+          <div>
+            <label className="block text-white/90 text-sm font-medium mb-2">性別</label>
+            <div className="grid grid-cols-3 gap-2">
+              {(['male', 'female', 'non-binary'] as CharacterGender[]).map((gender) => (
+                <button
+                  key={gender}
+                  type="button"
+                  onClick={() => updateData('gender', gender)}
+                  className={`p-3 rounded-lg text-sm transition-colors ${
+                    characterData.gender === gender
+                      ? 'bg-purple-500 text-white'
+                      : 'bg-white/20 text-white/80 hover:bg-white/30'
+                  }`}
+                >
+                  {getGenderLabel(gender)}
+                </button>
+              ))}
             </div>
           </div>
+
+          {/* タイプ */}
           <div>
-            <label className="block text-white/80 text-sm mb-1">瞳の色</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={characterData.appearance.eyeColor}
-                onChange={(e) => onUpdate({
-                  ...characterData,
-                  appearance: { ...characterData.appearance, eyeColor: e.target.value }
-                })}
-                className="w-12 h-10 rounded border border-white/30"
-              />
-              <span className="text-white/60 text-sm">{characterData.appearance.eyeColor}</span>
+            <label className="block text-white/90 text-sm font-medium mb-3">タイプ</label>
+            <div className="grid grid-cols-2 gap-3">
+              {(['human', 'dragon', 'elf', 'android', 'ghost', 'mage', 'dog', 'cat', 'knight', 'ninja'] as CharacterRace[]).map((race) => {
+                const raceEmojis = {
+                  human: '👤',
+                  dragon: '🐲',
+                  elf: '🧝‍♀️',
+                  android: '🤖',
+                  ghost: '👻',
+                  mage: '🧙‍♀️',
+                  dog: '🐕',
+                  cat: '🐱',
+                  knight: '⚔️',
+                  ninja: '🥷'
+                };
+                return (
+                  <button
+                    key={race}
+                    type="button"
+                    onClick={() => updateData('race', race)}
+                    className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
+                      characterData.race === race
+                        ? 'border-purple-400 bg-purple-500/20'
+                        : 'border-white/30 bg-white/10 hover:bg-white/15'
+                    }`}
+                  >
+                    <span className="text-2xl">{raceEmojis[race]}</span>
+                    <span className="text-white font-medium">{getRaceLabel(race)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 年齢層 */}
+          <div>
+            <label className="block text-white/90 text-sm font-medium mb-2">年齢層</label>
+            <div className="grid grid-cols-3 gap-2">
+              {(['young', 'adult', 'elder'] as CharacterAge[]).map((age) => (
+                <button
+                  key={age}
+                  type="button"
+                  onClick={() => updateData('age', age)}
+                  className={`p-3 rounded-lg text-sm transition-colors ${
+                    characterData.age === age
+                      ? 'bg-purple-500 text-white'
+                      : 'bg-white/20 text-white/80 hover:bg-white/30'
+                  }`}
+                >
+                  {getAgeLabel(age)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 肌の色 */}
+          <div>
+            <label className="block text-white/90 text-sm font-medium mb-3">肌の色</label>
+            <div className="grid grid-cols-4 gap-3">
+              {(['pinkish', 'fair', 'light', 'medium', 'olive', 'brown', 'dark', 'deep'] as SkinTone[]).map((skinTone) => {
+                const skinColors = {
+                  pinkish: '#fdbcb4',
+                  fair: '#edb98a',
+                  light: '#fd9841',
+                  medium: '#e4a373',
+                  olive: '#c2b280',
+                  brown: '#8d5524',
+                  dark: '#5c3317',
+                  deep: '#3e2723'
+                };
+                return (
+                  <button
+                    key={skinTone}
+                    type="button"
+                    onClick={() => updateData('skinTone', skinTone)}
+                    className={`flex flex-col items-center gap-2 p-3 rounded-lg border transition-all ${
+                      characterData.skinTone === skinTone
+                        ? 'border-purple-400 bg-purple-500/20'
+                        : 'border-white/30 bg-white/10 hover:bg-white/15'
+                    }`}
+                  >
+                    <div
+                      className="w-8 h-8 rounded-full border-2 border-white/30"
+                      style={{ backgroundColor: skinColors[skinTone] }}
+                    />
+                    <span className="text-white text-xs font-medium">{getSkinToneLabel(skinTone)}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
       </div>
 
-      {/* バックストーリー */}
-      <div>
-        <label className="block text-white font-medium mb-2">バックストーリー</label>
+      {/* 性格と専門分野 */}
+      <div className="bg-white/15 backdrop-blur-md rounded-2xl p-6 border border-white/20">
+        <h2 className="text-lg font-bold text-white mb-4 drop-shadow-lg">性格・専門分野</h2>
+        
+        <div className="space-y-4">
+          {/* 性格 */}
+          <div>
+            <label className="block text-white/90 text-sm font-medium mb-3">性格</label>
+            <div className="grid grid-cols-2 gap-3">
+              {(['tsundere', 'kuudere', 'genki', 'yandere', 'oneesan', 'imouto', 'landmine', 'wild'] as PersonalityType[]).map((personality) => {
+                const personalityEmojis = {
+                  tsundere: '😤',
+                  kuudere: '😎',
+                  genki: '😊',
+                  yandere: '😍',
+                  oneesan: '🔮',
+                  imouto: '🙂',
+                  landmine: '🥺',
+                  wild: '🤪'
+                };
+                return (
+                  <button
+                    key={personality}
+                    type="button"
+                    onClick={() => updateData('personality', personality)}
+                    className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
+                      characterData.personality === personality
+                        ? 'border-purple-400 bg-purple-500/20'
+                        : 'border-white/30 bg-white/10 hover:bg-white/15'
+                    }`}
+                  >
+                    <span className="text-xl">{personalityEmojis[personality]}</span>
+                    <span className="text-white font-medium">{getPersonalityLabel(personality)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 専門分野 */}
+          <div>
+            <label className="block text-white/90 text-sm font-medium mb-3">専門分野</label>
+            <div className="grid grid-cols-2 gap-3">
+              {(['sales', 'marketing', 'support', 'analysis', 'secretary', 'strategy', 'designer', 'writer'] as BusinessDomain[]).map((domain) => {
+                const domainEmojis = {
+                  sales: '💼',
+                  marketing: '📱',
+                  support: '🛡️',
+                  analysis: '📊',
+                  secretary: '📋',
+                  strategy: '🎯',
+                  designer: '🎨',
+                  writer: '✍️'
+                };
+                return (
+                  <button
+                    key={domain}
+                    type="button"
+                    onClick={() => updateData('domain', domain)}
+                    className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
+                      characterData.domain === domain
+                        ? 'border-purple-400 bg-purple-500/20'
+                        : 'border-white/30 bg-white/10 hover:bg-white/15'
+                    }`}
+                  >
+                    <span className="text-xl">{domainEmojis[domain]}</span>
+                    <span className="text-white font-medium">{getDomainLabel(domain)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 外見設定 */}
+      <div className="bg-white/15 backdrop-blur-md rounded-2xl p-6 border border-white/20">
+        <h2 className="text-lg font-bold text-white mb-4 drop-shadow-lg">外見設定</h2>
+        
+        <div className="space-y-4">
+          {/* テーマカラー */}
+          <div>
+            <label className="block text-white/90 text-sm font-medium mb-2">テーマカラー</label>
+            <div className="grid grid-cols-5 gap-2">
+              {themeColorOptions.map((color) => (
+                <button
+                  key={color.value}
+                  type="button"
+                  onClick={() => updateAppearance('themeColor', color.value)}
+                  className={`p-2 rounded-lg text-xs transition-all flex items-center justify-center ${
+                    characterData.appearance.themeColor === color.value
+                      ? 'ring-2 ring-white scale-105'
+                      : 'hover:scale-105'
+                  }`}
+                  style={{ backgroundColor: color.value }}
+                  title={color.label}
+                >
+                  <div className="w-6 h-6 rounded-full" style={{ backgroundColor: color.value }} />
+                </button>
+              ))}
+            </div>
+            <p className="text-white/60 text-xs mt-2">
+              選択したカラー: {themeColorOptions.find(c => c.value === characterData.appearance.themeColor)?.label || '未選択'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 詳細設定 */}
+      <div className="bg-white/15 backdrop-blur-md rounded-2xl p-6 border border-white/20">
+        <h2 className="text-lg font-bold text-white mb-4 drop-shadow-lg">バックストーリー</h2>
+        
         <textarea
           value={characterData.backstory}
-          onChange={(e) => onUpdate({ ...characterData, backstory: e.target.value })}
-          placeholder="このAI社員の背景や動機を自由に設定してください..."
+          onChange={(e) => updateData('backstory', e.target.value)}
+          className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/60 focus:border-purple-400 focus:outline-none resize-none"
           rows={4}
-          className="w-full px-4 py-2 rounded-lg bg-white/20 text-white placeholder-white/60 border border-white/30 focus:border-purple-400 focus:outline-none resize-none"
+          placeholder="キャラクターの詳細な背景や設定を入力してください（画像生成に反映されます）"
         />
       </div>
     </div>

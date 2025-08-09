@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { AICharacter } from '@/types/database';
-import { getDomainLabel, getPersonalityLabel, getRaceLabel } from '@/lib/translations';
+import { getDomainLabel, getPersonalityLabel, getRaceLabel, getGenderLabel, getAgeLabel, getSkinToneLabel } from '@/lib/translations';
 
 interface CharacterCarouselProps {
   characters: AICharacter[];
@@ -92,9 +92,16 @@ export function CharacterCarousel({ characters, onCharacterSelect, onCreateChara
                       <p className="text-white/90 text-sm drop-shadow">
                         専門分野: {getDomainLabel((item as AICharacter).domain)}
                       </p>
-                      <p className="text-white/80 text-xs mt-1 drop-shadow">
-                        {getPersonalityLabel((item as AICharacter).personality)} • {getRaceLabel((item as AICharacter).race)}
-                      </p>
+                      <div className="text-white/80 text-xs mt-1 drop-shadow space-y-0.5">
+                        <p>
+                          {getPersonalityLabel((item as AICharacter).personality)} • {getRaceLabel((item as AICharacter).race)}
+                        </p>
+                        {(item as AICharacter).gender && (item as AICharacter).age && (
+                          <p>
+                            {getGenderLabel((item as AICharacter).gender)} • {getAgeLabel((item as AICharacter).age)}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                   

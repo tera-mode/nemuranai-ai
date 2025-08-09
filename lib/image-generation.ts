@@ -1,58 +1,132 @@
 import { storage } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { AICharacter } from '@/types/database';
+import { AICharacter, CharacterRace, CharacterGender, CharacterAge, SkinTone, PersonalityType, BusinessDomain } from '@/types/database';
 
-// キャラクター情報からアニメ調プロンプトを生成
-export function generateAnimePrompt(character: Partial<AICharacter>): string {
-  // 種族の特徴を定義
-  const raceFeatures: Record<string, string> = {
-    dragon: 'dragon-like features, small horns, dragon ears, mystical scales accents',
-    elf: 'pointed elf ears, ethereal beauty, graceful features',
-    android: 'subtle cybernetic elements, glowing eyes, futuristic details',
-    ghost: 'translucent ethereal appearance, floating, mysterious aura',
-    mage: 'magical aura, mystical accessories, wizard-like appearance',
-    genius: 'intellectual appearance, glasses, scholarly look'
+// 種族ごとの特徴を定義
+const raceFeatures: Record<CharacterRace, string> = {
+  human: 'human, natural appearance',
+  dragon: 'dragon horns, dragon wings, dragon tail, scales, fantasy creature, majestic',
+  elf: 'pointed ears, elegant features, mystical aura, graceful',
+  android: 'mechanical parts, glowing circuit patterns, futuristic elements, cybernetic',
+  ghost: 'translucent appearance, ethereal glow, floating, spiritual',
+  mage: 'wizard hat, magic staff, mystical robes, magical aura',
+  dog: 'dog ears, dog tail, canine features, loyal expression',
+  cat: 'cat ears, cat tail, feline features, graceful movement',
+  knight: 'knight armor, medieval plate armor, sword, shield, noble appearance, chivalrous',
+  ninja: 'ninja outfit, dark clothing, mask, stealthy appearance, martial arts pose'
+};
+
+// 性別ごとの特徴
+const genderFeatures: Record<CharacterGender, string> = {
+  male: 'masculine features, strong jawline',
+  female: 'feminine features, graceful appearance',
+  'non-binary': 'androgynous features, neutral appearance'
+};
+
+// 年齢層ごとの特徴
+const ageFeatures: Record<CharacterAge, string> = {
+  young: 'youthful face, teenage appearance, bright innocent eyes, energetic posture, smooth skin',
+  adult: 'mature face, adult features, confident expression, professional demeanor, well-defined facial structure',
+  elder: 'elderly appearance, wise mature face, experienced expression, dignified posture, aged features, wrinkles'
+};
+
+// 肌色の表現
+const skinToneFeatures: Record<SkinTone, string> = {
+  pinkish: 'pinkish pale skin, soft rosy complexion',
+  fair: 'fair light skin, peachy complexion',
+  light: 'light tan skin, warm beige complexion',
+  medium: 'medium brown skin, golden complexion',
+  olive: 'olive toned skin, mediterranean complexion',
+  brown: 'rich brown skin, mocha complexion',
+  dark: 'dark brown skin, chocolate complexion',
+  deep: 'very dark skin, ebony complexion'
+};
+
+// 性格ごとの表情・雰囲気・動作
+const personalityMoods: Record<PersonalityType, string> = {
+  tsundere: 'blushing, looking away, crossed arms, embarrassed expression, defensive pose, conflicted emotions',
+  kuudere: 'cool expression, composed demeanor, confident look, calm gaze, sophisticated posture',
+  genki: 'bright smile, energetic pose, cheerful expression, dynamic movement, sparkling eyes',
+  yandere: 'obsessive smile, intense gaze, possessive aura, slightly unhinged expression',
+  oneesan: 'mysterious smile, enigmatic expression, alluring posture, mystical aura',
+  imouto: 'honest expression, straightforward look, genuine smile, sincere posture',
+  landmine: 'unstable expression, emotional complexity, fragile appearance, intense emotions',
+  wild: 'fierce expression, dynamic pose, untamed energy, rebellious attitude'
+};
+
+// 専門分野ごとの衣装・アイテム・環境
+const domainOutfits: Record<BusinessDomain, string> = {
+  sales: 'business suit, briefcase, professional attire, confident handshake pose, office environment',
+  marketing: 'trendy outfit, tablet, creative accessories, presentation materials, modern workspace',
+  support: 'headset, helpful expression, service uniform, customer-friendly pose',
+  analysis: 'glasses, charts in background, data visualization, analytical tools, focused expression',
+  secretary: 'office attire, notepad, organized desk, scheduling tools, efficient posture',
+  strategy: 'formal suit, strategic planning pose, whiteboard with diagrams, leadership aura',
+  designer: 'creative outfit, design tools, color palette, artistic workspace, inspirational pose',
+  writer: 'comfortable writing attire, notebook, pen, bookshelves, contemplative expression'
+};
+
+// 背景・環境・ストーリー要素を生成
+function generateStoryElements(character: any): string {
+  const backstoryElements = character.backstory ? `, ${character.backstory}` : '';
+  const themeColorHex = character.appearance?.themeColor || '#4ecdc4';
+  
+  // 専門分野に応じた環境設定
+  const environmentMap: Record<BusinessDomain, string> = {
+    sales: 'modern office, glass windows, city view, professional lighting',
+    marketing: 'creative studio, colorful environment, digital displays, inspiring atmosphere',
+    support: 'help desk environment, multiple monitors, organized workspace',
+    analysis: 'data center, multiple screens with graphs, analytical environment',
+    secretary: 'executive office, organized desk, professional atmosphere',
+    strategy: 'conference room, strategic planning boards, executive environment',
+    designer: 'art studio, creative workspace, design materials scattered around',
+    writer: 'cozy library, bookshelves, warm lighting, writing desk'
   };
 
-  // 性格による表情・雰囲気
-  const personalityMoods: Record<string, string> = {
-    tsundere: 'slightly blushing, proud expression, arms crossed',
-    kuudere: 'calm, cool expression, distant gaze, composed',
-    genki: 'bright smile, energetic pose, cheerful expression',
-    yandere: 'sweet smile with mysterious eyes, intense gaze',
-    oneesan: 'mature, gentle smile, caring expression, elegant pose',
-    imouto: 'cute, innocent expression, shy smile, adorable'
-  };
+  const environment = environmentMap[character.domain] || 'professional office environment';
+  const colorScheme = `color scheme incorporating ${themeColorHex}`;
+  
+  return `${environment}, ${colorScheme}, dynamic composition, story-driven scene${backstoryElements}`;
+}
 
-  // 専門分野による服装・アクセサリー
-  const domainOutfits: Record<string, string> = {
-    sales: 'business suit, professional attire, confident pose',
-    marketing: 'stylish business casual, modern accessories, creative flair',
-    support: 'friendly uniform, helping gesture, approachable appearance',
-    analysis: 'lab coat or smart casual, analytical tools, focused expression',
-    secretary: 'professional office attire, organized appearance, polite stance',
-    strategy: 'executive business wear, strategic pose, leadership aura'
-  };
+// 躍動感とキャラクター中心のレイアウト
+function generateCompositionPrompt(): string {
+  return `centered composition, character as main focus, dynamic pose, engaging expression, 
+    portrait orientation suitable for profile picture, face clearly visible in center, 
+    upper body focus, professional headshot style, high quality details, 
+    cinematic lighting, depth of field background`;
+}
 
-  // プロンプトを構築
-  const basePrompt = `anime style, high quality, detailed illustration, 1girl, solo, portrait, upper body, 
-    beautiful detailed face, ${character.appearance?.hairColor || 'brown'} hair, 
-    ${character.appearance?.eyeColor || 'brown'} eyes`;
+// 改善されたアニメ風プロンプト生成
+export function generateAnimePrompt(character: any): string {
+  const raceFeature = raceFeatures[character.race] || raceFeatures.human;
+  const genderFeature = genderFeatures[character.gender] || genderFeatures.female;
+  const ageFeature = ageFeatures[character.age] || ageFeatures.adult;
+  const skinToneFeature = skinToneFeatures[character.skinTone] || skinToneFeatures.medium;
+  const personalityMood = personalityMoods[character.personality] || personalityMoods.genki;
+  const domainOutfit = domainOutfits[character.domain] || domainOutfits.secretary;
+  const storyElements = generateStoryElements(character);
+  const composition = generateCompositionPrompt();
 
-  const raceFeature = raceFeatures[character.race || 'dragon'] || '';
-  const personalityMood = personalityMoods[character.personality || 'tsundere'] || '';
-  const domainOutfit = domainOutfits[character.domain || 'sales'] || '';
-
-  const negativePrompt = `lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, 
-    fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, 
-    watermark, username, blurry, multiple girls, realistic, 3d`;
-
-  return `${basePrompt}, ${raceFeature}, ${personalityMood}, ${domainOutfit}`;
+  const basePrompt = `anime style, highly detailed, beautiful ${character.name || 'AI assistant'}`;
+  
+  // バックストーリーを前半に強く反映させる
+  const backstoryPrefix = character.backstory ? `${character.backstory}, ` : '';
+  
+  // 肌色と年齢を最初に強調する
+  const primaryFeatures = `${skinToneFeature}, ${ageFeature}, ${genderFeature}`;
+  const secondaryFeatures = `${raceFeature}, ${personalityMood}`;
+  const characterPersonality = `${domainOutfit}`;
+  
+  const fullPrompt = `${basePrompt}, ${backstoryPrefix}${primaryFeatures}, ${secondaryFeatures}, ${characterPersonality}, ${storyElements}, ${composition}`;
+  
+  console.log('Generated prompt:', fullPrompt);
+  return fullPrompt;
 }
 
 // Stability AI APIで画像生成
 export async function generateCharacterImage(
-  character: Partial<AICharacter>,
+  character: any,
   userId: string,
   characterId?: string
 ): Promise<string> {
@@ -88,14 +162,13 @@ export async function generateCharacterImage(
     return data.imageUrl;
   } catch (error) {
     console.error('画像生成エラー:', error);
-    throw new Error('画像の生成に失敗しました。');
+    throw error;
   }
 }
 
-// 生成画像をFirebase Storageに保存
+// Firebase Storageに画像を保存
 export async function saveGeneratedImageToStorage(
-  imageBuffer: Buffer,
-  userId: string,
+  imageBase64: string, 
   characterId: string
 ): Promise<string> {
   try {
@@ -105,9 +178,9 @@ export async function saveGeneratedImageToStorage(
     // 手動アップロードと同じパス構造を使用
     const timestamp = Date.now();
     const fileName = `generated-character-${characterId}-${timestamp}.png`;
-    const filePath = `users/${userId}/characters/${characterId}/${fileName}`;
+    const filePath = `character-images/${fileName}`;
     
-    console.log('Saving image to path:', filePath);
+    const imageBuffer = Buffer.from(imageBase64, 'base64');
     console.log('Image buffer size:', imageBuffer.length);
     
     const storageRef = ref(storage, filePath);
@@ -118,28 +191,16 @@ export async function saveGeneratedImageToStorage(
       contentType: 'image/png'
     };
     
-    console.log('Starting upload...');
-    const snapshot = await uploadBytes(storageRef, imageBuffer, metadata);
-    console.log('Upload completed, getting download URL...');
+    console.log('Starting upload to Firebase Storage...');
+    const uploadResult = await uploadBytes(storageRef, imageBuffer, metadata);
+    console.log('Upload completed:', uploadResult.metadata.fullPath);
     
-    const downloadURL = await getDownloadURL(snapshot.ref);
+    const downloadURL = await getDownloadURL(uploadResult.ref);
     console.log('Download URL obtained:', downloadURL);
     
     return downloadURL;
-  } catch (error: any) {
-    console.error('生成画像保存エラー:', error);
-    
-    // より詳細なエラー情報をログ出力
-    if (error?.customData) {
-      console.error('Custom data:', error.customData);
-    }
-    if (error?.status_) {
-      console.error('Status:', error.status_);
-    }
-    if (error?._baseMessage) {
-      console.error('Base message:', error._baseMessage);
-    }
-    
-    throw new Error(`生成画像の保存に失敗しました: ${error?.message || 'Unknown error'}`);
+  } catch (error) {
+    console.error('Firebase Storage upload error:', error);
+    throw new Error(`画像のアップロードに失敗しました: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }

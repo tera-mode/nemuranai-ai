@@ -1,15 +1,24 @@
 // キャラクター種族の定義
-export type CharacterRace = 'dragon' | 'elf' | 'android' | 'ghost' | 'mage' | 'genius';
+export type CharacterRace = 'human' | 'dragon' | 'elf' | 'android' | 'ghost' | 'mage' | 'dog' | 'cat' | 'knight' | 'ninja';
+
+// キャラクター性別
+export type CharacterGender = 'male' | 'female' | 'non-binary';
+
+// キャラクター年齢層
+export type CharacterAge = 'young' | 'adult' | 'elder';
+
+// 肌の色
+export type SkinTone = 'pinkish' | 'fair' | 'light' | 'medium' | 'olive' | 'brown' | 'dark' | 'deep';
 
 // キャラクター性格タイプ
 export type PersonalityType = 
-  | 'tsundere' | 'kuudere' | 'dandere' | 'genki' 
-  | 'serious' | 'mysterious' | 'innocent' | 'cool';
+  | 'tsundere' | 'kuudere' | 'genki' | 'yandere' | 'oneesan' | 'imouto'
+  | 'landmine' | 'wild';
 
 // ビジネス専門分野
 export type BusinessDomain = 
   | 'sales' | 'marketing' | 'support' | 'analysis' 
-  | 'secretary' | 'strategy' | 'hr' | 'finance';
+  | 'secretary' | 'strategy' | 'designer' | 'writer';
 
 // ユーザープロファイル
 export interface UserProfile {
@@ -26,12 +35,14 @@ export interface AICharacter {
   id: string;
   userId: string;
   name: string;
+  gender: CharacterGender;
   race: CharacterRace;
+  age: CharacterAge;
+  skinTone: SkinTone;
   personality: PersonalityType;
   domain: BusinessDomain;
   appearance: {
-    hairColor: string;
-    eyeColor: string;
+    themeColor: string;
     outfit: string;
     accessories: string[];
   };
