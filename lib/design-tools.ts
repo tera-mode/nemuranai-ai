@@ -2,6 +2,7 @@ import sharp from 'sharp';
 import path from 'path';
 import { writeFile, mkdir } from 'fs/promises';
 import { ProcessedStep } from './template-engine';
+import { saveGeneratedImageToStorage } from './image-generation';
 
 export interface ToolResult {
   success: boolean;
@@ -41,6 +42,7 @@ export class StabilityAdapter {
     negative?: string;
     seed?: number;
     useCase?: string;
+    userId?: string;
   }): Promise<ToolResult> {
     const startTime = Date.now();
     
@@ -96,19 +98,38 @@ export class StabilityAdapter {
         throw new Error(`Stability API error: ${response.status} - ${errorText}`);
       }
 
-      const imageBuffer = await response.arrayBuffer();
-      const outputDir = path.join(process.cwd(), 'temp');
-      await mkdir(outputDir, { recursive: true });
+      const imageBuffer = Buffer.from(await response.arrayBuffer());
       
-      const outputPath = path.join(outputDir, params.output);
-      await writeFile(outputPath, Buffer.from(imageBuffer));
+      // Firebase Storageに保存するか、ローカル一時ファイルに保存するかを選択
+      if (params.userId) {
+        console.log('💾 Saving design image to Firebase Storage...');
+        const firebaseUrl = await saveGeneratedImageToStorage(
+          imageBuffer,
+          params.userId
+        );
+        console.log('✅ Design image saved to Firebase:', firebaseUrl);
+        
+        return {
+          success: true,
+          outputs: [firebaseUrl],
+          durationMs: Date.now() - startTime,
+          cost: cost
+        };
+      } else {
+        // フォールバック：ローカル一時保存（開発・テスト用）
+        const outputDir = path.join(process.cwd(), 'temp');
+        await mkdir(outputDir, { recursive: true });
+        
+        const outputPath = path.join(outputDir, params.output);
+        await writeFile(outputPath, imageBuffer);
 
-      return {
-        success: true,
-        outputs: [outputPath],
-        durationMs: Date.now() - startTime,
-        cost: cost
-      };
+        return {
+          success: true,
+          outputs: [outputPath],
+          durationMs: Date.now() - startTime,
+          cost: cost
+        };
+      }
     } catch (error) {
       return {
         success: false,
@@ -312,7 +333,7 @@ export class SharpProcessor {
 }
 
 export class ToolExecutor {
-  static async execute(step: ProcessedStep, context: { prompt?: string; lastOutputs?: string[]; useCase?: string }): Promise<ToolResult> {
+  static async execute(step: ProcessedStep, context: { prompt?: string; lastOutputs?: string[]; useCase?: string; userId?: string }): Promise<ToolResult> {
     const [category, action] = step.tool.split('.');
     
     switch (category) {
@@ -325,7 +346,12 @@ export class ToolExecutor {
       case 'stability':
         if (action === 'generate') {
           const prompt = context.prompt || step.with.prompt || '';
-          return StabilityAdapter.generate({ ...step.with, prompt, useCase: context.useCase } as any);
+          return StabilityAdapter.generate({ 
+            ...step.with, 
+            prompt, 
+            useCase: context.useCase,
+            userId: context.userId 
+          } as any);
         }
         break;
         

@@ -5,6 +5,7 @@ import { Brand, DesignJob, RunStep, JobStatus } from '@/types/design';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { readFile } from 'fs/promises';
 import path from 'path';
+import { saveGeneratedImageToStorage } from './image-generation';
 
 export class JobExecutor {
   private templateEngine = new TemplateEngine();
@@ -40,7 +41,8 @@ export class JobExecutor {
             const result = await ToolExecutor.execute(processedStep, {
               prompt: currentPrompt,
               lastOutputs,
-              useCase: job.useCase
+              useCase: job.useCase,
+              userId: job.userId // Add userId for Firebase Storage
             });
             console.log(`Step ${step.tool} result:`, result);
 
@@ -101,16 +103,20 @@ export class JobExecutor {
         const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const previewUrl = `/api/temp-image/${tempId}`;
         
-        // Store file as base64 in temp storage
-        const base64Data = fileBuffer.toString('base64');
-        const { storeTempImage } = await import('../lib/temp-storage');
-        storeTempImage(tempId, base64Data, 'system', jobId);
+        // Save to Firebase Storage instead of temp storage
+        console.log('💾 Saving design artifact to Firebase Storage...');
+        const firebaseUrl = await saveGeneratedImageToStorage(
+          fileBuffer,
+          'system', // userId for design system
+          jobId     // characterId param used as jobId
+        );
+        console.log('✅ Design artifact saved to Firebase:', firebaseUrl);
         
         await createArtifact({
           jobId,
           type: 'image',
-          storagePath: tempId, // temp ID instead of file path
-          previewUrl: previewUrl,
+          storagePath: firebaseUrl, // Firebase Storage URL
+          previewUrl: firebaseUrl,
           w: width,
           h: height,
           size: size

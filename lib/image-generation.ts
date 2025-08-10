@@ -131,8 +131,39 @@ async function translateToEnglish(text: string): Promise<string> {
   }
 }
 
+// プロンプト生成の結果型
+export interface PromptGenerationResult {
+  success: boolean;
+  prompt?: string;
+  error?: string;
+  isFiltered?: boolean;
+}
+
 // 改善されたアニメ風プロンプト生成
-export async function generateAnimePrompt(character: any): Promise<string> {
+export async function generateAnimePrompt(character: any): Promise<PromptGenerationResult> {
+  // コンテンツフィルタリングをインポート
+  const { containsInappropriateContent, sanitizePrompt, isInappropriateName, getContentFilterErrorMessage } = await import('@/lib/content-filter');
+  
+  // キャラクター名の不適切性チェック
+  if (isInappropriateName(character.name)) {
+    console.warn('Content filter: Inappropriate character name detected');
+    return {
+      success: false,
+      error: getContentFilterErrorMessage(),
+      isFiltered: true
+    };
+  }
+  
+  // バックストーリーの不適切性チェック
+  if (character.backstory && containsInappropriateContent(character.backstory)) {
+    console.warn('Content filter: Inappropriate backstory content detected');
+    return {
+      success: false,
+      error: getContentFilterErrorMessage(),
+      isFiltered: true
+    };
+  }
+  
   const raceFeature = raceFeatures[character.race] || raceFeatures.human;
   const genderFeature = genderFeatures[character.gender] || genderFeatures.female;
   const ageFeature = ageFeatures[character.age] || ageFeatures.adult;
@@ -155,10 +186,25 @@ export async function generateAnimePrompt(character: any): Promise<string> {
   
   const fullPrompt = `${basePrompt}, ${backstoryPrefix}${primaryFeatures}, ${secondaryFeatures}, ${characterPersonality}, ${storyElements}, ${composition}`;
   
-  console.log('Generated prompt (with translated backstory):', fullPrompt);
+  // プロンプト全体の安全性チェックと修正
+  const sanitizedPrompt = sanitizePrompt(fullPrompt);
+  
+  console.log('Generated prompt (with translated backstory):', sanitizedPrompt);
   console.log('Original backstory:', character.backstory);
   console.log('Translated backstory:', translatedBackstory);
-  return fullPrompt;
+  
+  return {
+    success: true,
+    prompt: sanitizedPrompt
+  };
+}
+
+// 画像生成の結果型
+export interface ImageGenerationResult {
+  success: boolean;
+  imageUrl?: string;
+  error?: string;
+  isFiltered?: boolean;
 }
 
 // Stability AI APIで画像生成
@@ -166,9 +212,18 @@ export async function generateCharacterImage(
   character: any,
   userId: string,
   characterId?: string
-): Promise<string> {
+): Promise<ImageGenerationResult> {
   try {
-    const prompt = await generateAnimePrompt(character);
+    const promptResult = await generateAnimePrompt(character);
+    
+    // プロンプト生成でフィルタリングされた場合
+    if (!promptResult.success) {
+      return {
+        success: false,
+        error: promptResult.error,
+        isFiltered: promptResult.isFiltered
+      };
+    }
     
     const response = await fetch('/api/generate-image', {
       method: 'POST',
@@ -176,7 +231,7 @@ export async function generateCharacterImage(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        prompt,
+        prompt: promptResult.prompt,
         userId,
         characterId: characterId || `temp-${Date.now()}`,
       }),
@@ -184,58 +239,112 @@ export async function generateCharacterImage(
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`画像生成エラー: ${response.status} - ${errorText}`);
+      
+      // 403エラーの場合は特別な処理（デッドループ防止）
+      if (response.status === 403) {
+        console.warn('Image generation blocked by content policy (403)');
+        return {
+          success: false,
+          error: '申し訳ございませんが、このキャラクターの画像生成はコンテンツポリシーにより制限されています。設定を変更してもう一度お試しください。',
+          isFiltered: true
+        };
+      }
+      
+      // その他のHTTPエラー
+      return {
+        success: false,
+        error: `画像生成サービスエラー (${response.status}): サービスが一時的に利用できません。しばらく待ってからもう一度お試しください。`
+      };
     }
 
     const data = await response.json();
     
-    // 開発環境でbase64Fallbackがあれば表示用に使用するが、保存は一時URLを使用
-    if (data.base64Fallback && process.env.NODE_ENV === 'development') {
-      console.log('Base64 fallback available, but using temp URL for database storage');
-      // Base64は画面表示用、実際の保存には一時URLを使用
-      return data.imageUrl; // 一時URL（/api/temp-image/xxx）を返す
+    // レスポンスデータの検証
+    if (!data.imageUrl) {
+      return {
+        success: false,
+        error: '画像生成は完了しましたが、画像URLの取得に失敗しました。もう一度お試しください。'
+      };
     }
     
-    return data.imageUrl;
-  } catch (error) {
+    console.log('✅ Image generation response:', {
+      success: data.success,
+      isFirebase: data.isFirebase,
+      urlType: data.imageUrl?.startsWith('https://') ? 'Firebase' : 'Other'
+    });
+    
+    return {
+      success: true,
+      imageUrl: data.imageUrl
+    };
+  } catch (error: any) {
     console.error('画像生成エラー:', error);
-    throw error;
+    return {
+      success: false,
+      error: '画像生成中に予期しないエラーが発生しました。ネットワーク接続を確認して、もう一度お試しください。'
+    };
   }
 }
 
 // Firebase Storageに画像を保存
 export async function saveGeneratedImageToStorage(
-  imageBase64: string, 
-  characterId: string
+  imageBuffer: Buffer, 
+  userId: string,
+  characterId?: string
 ): Promise<string> {
   try {
     // Firebase Storage設定をデバッグ
-    console.log('Storage instance:', storage.app.options);
+    console.log('🔥 Firebase Storage - Starting upload for user:', userId);
+    console.log('🔥 Storage instance app config:', {
+      projectId: storage.app.options.projectId,
+      storageBucket: storage.app.options.storageBucket,
+      authDomain: storage.app.options.authDomain
+    });
     
-    // 手動アップロードと同じパス構造を使用
+    // ファイル名とパスを生成
     const timestamp = Date.now();
-    const fileName = `generated-character-${characterId}-${timestamp}.png`;
-    const filePath = `character-images/${fileName}`;
+    const fileName = characterId 
+      ? `character-${characterId}-${timestamp}.png`
+      : `design-${userId}-${timestamp}.png`;
+    const filePath = characterId 
+      ? `character-images/${fileName}`
+      : `design-images/${fileName}`;
     
-    const imageBuffer = Buffer.from(imageBase64, 'base64');
-    console.log('Image buffer size:', imageBuffer.length);
+    console.log('📁 File path:', filePath);
+    console.log('📏 Image buffer size:', imageBuffer.length, 'bytes');
     
     const storageRef = ref(storage, filePath);
-    console.log('Storage ref created:', storageRef.bucket, storageRef.fullPath);
+    console.log('📦 Storage ref created:', {
+      bucket: storageRef.bucket,
+      fullPath: storageRef.fullPath,
+      name: storageRef.name
+    });
     
-    // シンプルなメタデータに変更
+    // まずシンプルなメタデータでアップロード試行
     const metadata = {
       contentType: 'image/png'
     };
     
-    console.log('Starting upload to Firebase Storage...');
-    const uploadResult = await uploadBytes(storageRef, imageBuffer, metadata);
-    console.log('Upload completed:', uploadResult.metadata.fullPath);
+    console.log('⬆️ Starting upload to Firebase Storage...');
     
-    const downloadURL = await getDownloadURL(uploadResult.ref);
-    console.log('Download URL obtained:', downloadURL);
-    
-    return downloadURL;
+    try {
+      const uploadResult = await uploadBytes(storageRef, imageBuffer, metadata);
+      console.log('✅ Upload completed:', uploadResult.metadata.fullPath);
+      
+      const downloadURL = await getDownloadURL(uploadResult.ref);
+      console.log('🔗 Download URL obtained:', downloadURL);
+      
+      return downloadURL;
+    } catch (uploadError: any) {
+      console.error('❌ Upload failed with detailed error:', {
+        code: uploadError.code,
+        message: uploadError.message,
+        status: uploadError.status_,
+        serverResponse: uploadError.serverResponse,
+        customData: uploadError.customData
+      });
+      throw uploadError;
+    }
   } catch (error) {
     console.error('Firebase Storage upload error:', error);
     throw new Error(`画像のアップロードに失敗しました: ${error instanceof Error ? error.message : 'Unknown error'}`);

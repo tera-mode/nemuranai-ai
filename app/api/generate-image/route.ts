@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saveGeneratedImageToStorage } from '@/lib/image-generation';
+import { uploadImageWithAdmin } from '@/lib/firebase-admin';
 import { generateImageId, storeTempImage } from '@/lib/temp-storage';
 
 export async function POST(request: NextRequest) {
@@ -96,48 +97,60 @@ export async function POST(request: NextRequest) {
     console.log('📏 Generated Image Size:', imageBuffer.length, 'bytes');
     console.log('✅ ====================================');
 
-    // まず Firebase Storage に保存を試行
+    // Firebase Admin SDK で画像を保存（フォールバックあり）
     let imageUrl: string;
+    let isFirebaseStorage = false;
     
     try {
-      console.log('Attempting to save to Firebase Storage...');
-      imageUrl = await saveGeneratedImageToStorage(
+      console.log('💾 Attempting to save with Firebase Admin SDK...');
+      
+      // ファイルパスを生成
+      const timestamp = Date.now();
+      const fileName = characterId 
+        ? `character-${characterId}-${timestamp}.png`
+        : `design-${userId}-${timestamp}.png`;
+      const filePath = characterId 
+        ? `character-images/${fileName}`
+        : `design-images/${fileName}`;
+        
+      imageUrl = await uploadImageWithAdmin(
         imageBuffer,
-        userId,
-        characterId
+        filePath,
+        'image/png'
       );
-      console.log('Image saved successfully, URL:', imageUrl);
+      console.log('✅ Image saved successfully with Admin SDK');
+      console.log('🔗 Firebase URL:', imageUrl);
+      isFirebaseStorage = true;
     } catch (storageError) {
-      console.error('Firebase Storage failed, falling back to temp storage:', storageError);
+      console.error('❌ Firebase Admin SDK failed, trying Client SDK...', storageError);
       
-      // Firebase Storage に失敗した場合は一時ストレージを使用
-      const tempImageId = generateImageId();
-      storeTempImage(tempImageId, imageBase64, userId, characterId);
-      imageUrl = `/api/temp-image/${tempImageId}`;
-      console.log('Using temp storage fallback, ID:', tempImageId);
-      
-      // 開発中はデバッグ情報を出力
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Temp storage debug - saved image with ID:', tempImageId);
-        console.log('Image will be available at:', imageUrl);
+      try {
+        // Client SDK で試行
+        imageUrl = await saveGeneratedImageToStorage(
+          imageBuffer,
+          userId,
+          characterId
+        );
+        console.log('✅ Image saved with Client SDK');
+        isFirebaseStorage = true;
+      } catch (clientError) {
+        console.error('❌ Client SDK also failed, using temporary fallback:', clientError);
+        
+        // 両方失敗した場合は一時ストレージを使用
+        const tempImageId = generateImageId();
+        storeTempImage(tempImageId, imageBase64, userId, characterId);
+        imageUrl = `/api/temp-image/${tempImageId}`;
+        console.log('🔄 Using temp storage fallback, ID:', tempImageId);
       }
     }
 
-    // 開発環境では確実に画像を表示するためBase64も返す
-    const apiResponse: any = {
+    return NextResponse.json({
       success: true,
       imageUrl,
       prompt,
-      isTemp: imageUrl.startsWith('/api/temp-image/'),
-      isBase64: false
-    };
-
-    // 一時ストレージ使用時は安全のためBase64データも返す
-    if (imageUrl.startsWith('/api/temp-image/') && process.env.NODE_ENV === 'development') {
-      apiResponse.base64Fallback = `data:image/png;base64,${imageBase64}`;
-    }
-
-    return NextResponse.json(apiResponse);
+      isTemp: !isFirebaseStorage,
+      isFirebase: isFirebaseStorage
+    });
 
   } catch (error) {
     console.error('画像生成APIエラー:', error);

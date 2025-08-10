@@ -30,5 +30,16 @@ export const refreshFirestore = async () => {
 };
 
 // Firebase Storage の初期化をより明示的に
-console.log('Firebase Storage Bucket:', firebaseConfig.storageBucket);
+console.log('Firebase Storage Configuration:', {
+  projectId: firebaseConfig.projectId,
+  storageBucket: firebaseConfig.storageBucket,
+  authDomain: firebaseConfig.authDomain
+});
+
 export const storage = getStorage(app);
+
+// Storage設定のデバッグ
+console.log('Storage instance initialized:', {
+  app: storage.app.name,
+  bucket: storage.app.options.storageBucket
+});

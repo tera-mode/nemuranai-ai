@@ -174,17 +174,22 @@ export async function deleteCharacter(characterId: string, userId: string): Prom
     const characterData = docSnap.data();
     console.log(`Character to delete: ${characterData.name}, isActive: ${characterData.isActive}`);
     
-    // 1. 関連するスレッドを取得して削除
+    // 1. プロフィール画像をFirebase Storageから削除
+    if (characterData.profileImageUrl && !characterData.profileImageUrl.startsWith('data:image/')) {
+      await deleteCharacterProfileImage(characterData.profileImageUrl);
+    }
+    
+    // 2. 関連するスレッドを取得して削除
     await deleteCharacterThreads(userId, characterId);
     
-    // 2. 関連する一時画像を削除
+    // 3. 関連する一時画像を削除
     await deleteCharacterTempImages(characterId);
     
-    // 3. キャラクター本体を削除
+    // 4. キャラクター本体を削除
     await deleteDoc(docRef);
     console.log(`Deleted character document ${characterId} from Firestore`);
     
-    // 4. 削除後の確認
+    // 5. 削除後の確認
     const verifyDocSnap = await getDoc(docRef);
     if (verifyDocSnap.exists()) {
       console.error(`WARNING: Character ${characterId} still exists after deletion!`);
@@ -238,6 +243,19 @@ async function deleteCharacterThreads(userId: string, characterId: string): Prom
   } catch (error) {
     console.error('Error deleting character threads:', error);
     throw error;
+  }
+}
+
+// キャラクターのプロフィール画像をFirebase Storageから削除
+async function deleteCharacterProfileImage(imageUrl: string): Promise<void> {
+  try {
+    console.log(`Attempting to delete profile image: ${imageUrl}`);
+    const { deleteImageByUrl } = await import('@/lib/image-upload');
+    await deleteImageByUrl(imageUrl);
+    console.log(`Successfully deleted profile image from Firebase Storage`);
+  } catch (error) {
+    console.error('Error deleting character profile image from Firebase Storage:', error);
+    // Firebase Storage削除のエラーは致命的ではないので、警告のみ
   }
 }
 

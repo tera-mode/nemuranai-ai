@@ -18,6 +18,7 @@ function CharacterPreviewContent() {
   const [characterComment, setCharacterComment] = useState<string>('');
   const [characterData, setCharacterData] = useState<any>(null);
   const [hasGeneratedImage, setHasGeneratedImage] = useState(false);
+  const [hasContentViolation, setHasContentViolation] = useState(false);
   const generationInProgress = useRef(false);
 
   const generateImage = useCallback(async (data: any) => {
@@ -39,17 +40,34 @@ function CharacterPreviewContent() {
       if (!userId) return;
 
       console.log('Starting image generation for character:', data.name);
-      const imageUrl = await generateCharacterImage(data, userId);
-      setGeneratedImageUrl(imageUrl);
+      const result = await generateCharacterImage(data, userId);
       
-      // キャラクターからのコメントを生成
-      const comment = generateCharacterComment(data);
-      setCharacterComment(comment);
-      console.log('Image generation completed successfully');
-    } catch (error) {
-      console.error('画像生成エラー:', error);
-      setCharacterComment('画像の生成に失敗しましたが、キャラクターは作成できます。');
-      setHasGeneratedImage(false); // エラー時はフラグをリセットして再試行可能にする
+      if (result.success && result.imageUrl) {
+        setGeneratedImageUrl(result.imageUrl);
+        
+        // キャラクターからのコメントを生成
+        const comment = generateCharacterComment(data);
+        setCharacterComment(comment);
+        console.log('Image generation completed successfully');
+      } else {
+        // 画像生成が失敗した場合
+        console.warn('Image generation failed:', result.error);
+        
+        let errorMessage = '画像の生成に失敗しましたが、キャラクターは作成できます。';
+        
+        if (result.isFiltered) {
+          errorMessage = result.error || 'キャラクター設定に不適切な内容が含まれています。設定を見直してください。';
+          // フィルタリングされた場合は再試行を許可せず、作成も禁止
+          setHasGeneratedImage(true);
+          setHasContentViolation(true);
+        } else {
+          errorMessage = result.error || '画像生成サービスが一時的に利用できません。キャラクターは作成できます。';
+          // サービスエラーの場合は再試行を許可する
+          setHasGeneratedImage(false);
+        }
+        
+        setCharacterComment(errorMessage);
+      }
     } finally {
       setIsLoading(false);
       generationInProgress.current = false; // 生成終了をマーク
@@ -160,6 +178,19 @@ function CharacterPreviewContent() {
     try {
       const userId = session.user.id || session.user.email;
       if (!userId) return;
+
+      // キャラクター作成前にもコンテンツフィルタリングを実行
+      const { containsInappropriateContent, isInappropriateName, getContentFilterErrorMessage } = await import('@/lib/content-filter');
+      
+      if (isInappropriateName(characterData.name)) {
+        alert(getContentFilterErrorMessage());
+        return;
+      }
+      
+      if (characterData.backstory && containsInappropriateContent(characterData.backstory)) {
+        alert(getContentFilterErrorMessage());
+        return;
+      }
 
       await createCharacter({
         ...characterData,
@@ -333,9 +364,23 @@ function CharacterPreviewContent() {
 
           {/* アクションボタン */}
           <div className="text-center mt-8 space-y-4">
+            {/* コンテンツ違反の警告 */}
+            {hasContentViolation && (
+              <div className="bg-red-500/20 backdrop-blur-sm rounded-xl p-4 border border-red-500/50 mb-4">
+                <div className="flex items-center gap-2 text-red-300 font-medium mb-2">
+                  <span className="text-xl">⚠️</span>
+                  <span>コンテンツポリシー違反</span>
+                </div>
+                <p className="text-red-200 text-sm">
+                  キャラクター設定に不適切な内容が含まれているため、AI社員を作成できません。
+                  設定を変更してから再度お試しください。
+                </p>
+              </div>
+            )}
+
             <button
               onClick={handleCreateCharacter}
-              disabled={isCreating}
+              disabled={isCreating || hasContentViolation}
               className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-4 rounded-xl font-bold text-lg hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               {isCreating ? (
@@ -343,6 +388,8 @@ function CharacterPreviewContent() {
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                   AI社員を登録中...
                 </span>
+              ) : hasContentViolation ? (
+                '🚫 作成できません（コンテンツポリシー違反）'
               ) : (
                 '✨ この内容でAI社員を作成する'
               )}

@@ -2,6 +2,7 @@
 
 import { CharacterRace, CharacterGender, CharacterAge, SkinTone, PersonalityType, BusinessDomain } from '@/types/database';
 import { getRaceLabel, getGenderLabel, getAgeLabel, getSkinToneLabel, getPersonalityLabel, getDomainLabel, getThemeColorOptions } from '@/lib/translations';
+import { getRandomCharacterNameExcluding } from '@/lib/random-names';
 
 interface CharacterData {
   name: string;
@@ -54,14 +55,30 @@ export function CharacterCustomizer({ characterData, onUpdate }: CharacterCustom
           {/* 名前 */}
           <div>
             <label className="block text-white/90 text-sm font-medium mb-2">名前</label>
-            <input
-              type="text"
-              value={characterData.name}
-              onChange={(e) => updateData('name', e.target.value)}
-              className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/60 focus:border-purple-400 focus:outline-none"
-              placeholder="AI社員の名前"
-              required
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={characterData.name}
+                onChange={(e) => updateData('name', e.target.value)}
+                className="flex-1 px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/60 focus:border-purple-400 focus:outline-none"
+                placeholder="AI社員の名前"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const randomName = getRandomCharacterNameExcluding(characterData.name);
+                  updateData('name', randomName);
+                }}
+                className="px-4 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-medium hover:scale-105 transition-transform whitespace-nowrap"
+                title="ランダムな名前を生成"
+              >
+                🎲 ランダム
+              </button>
+            </div>
+            <p className="text-white/60 text-xs mt-1">
+              💡 ランダムボタンでおすすめの名前を自動生成できます
+            </p>
           </div>
 
           {/* 性別 */}
