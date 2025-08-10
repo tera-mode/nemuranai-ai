@@ -1,0 +1,37 @@
+rules_version = '2';
+
+// Firebase Storage Security Rules for AI Character Images
+// これらのルールをFirebase Console > Storage > Rules で設定してください
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // キャラクター画像の読み取り（全ユーザー可能）
+    match /character-images/{imageId} {
+      // 読み取りは誰でも可能（プロフィール画像の表示のため）
+      allow read: if true;
+      
+      // 書き込みは認証済みユーザーのみ
+      allow write: if request.auth != null
+        && request.auth.uid != null
+        && resource == null // 新規作成のみ（上書き防止）
+        && request.resource.contentType.matches('image/.*'); // 画像ファイルのみ
+    }
+    
+    // デザイン画像（一時的なもの）
+    match /design-images/{imageId} {
+      // 読み取りは誰でも可能
+      allow read: if true;
+      
+      // 書き込みは認証済みユーザーのみ
+      allow write: if request.auth != null
+        && request.auth.uid != null
+        && request.resource.contentType.matches('image/.*');
+    }
+    
+    // その他のファイルは制限的
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

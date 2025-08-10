@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saveGeneratedImageToStorage } from '@/lib/image-generation';
-// import { uploadImageWithAdmin } from '@/lib/firebase-admin';
+import { uploadImageWithAdmin } from '@/lib/firebase-admin';
 import { generateImageId, storeTempImage } from '@/lib/temp-storage';
 
 export async function POST(request: NextRequest) {
@@ -97,29 +97,51 @@ export async function POST(request: NextRequest) {
     console.log('📏 Generated Image Size:', imageBuffer.length, 'bytes');
     console.log('✅ ====================================');
 
-    // Firebase Admin SDK で画像を保存（フォールバックあり）
+    // 改良版：Admin SDK優先でフォールバック付きアップロード
     let imageUrl: string;
     let isFirebaseStorage = false;
     
     try {
-      console.log('💾 Admin SDK temporarily disabled for deployment, trying Client SDK...');
+      console.log('💾 Attempting Firebase Admin SDK upload...');
       
-      // Client SDK で試行
-      imageUrl = await saveGeneratedImageToStorage(
+      // ファイルパスを生成
+      const timestamp = Date.now();
+      const fileName = characterId 
+        ? `character-${characterId}-${timestamp}.png`
+        : `design-${userId}-${timestamp}.png`;
+      const filePath = characterId 
+        ? `character-images/${fileName}`
+        : `design-images/${fileName}`;
+      
+      // Firebase Admin SDK で直接アップロード
+      imageUrl = await uploadImageWithAdmin(
         imageBuffer,
-        userId,
-        characterId
+        filePath,
+        'image/png'
       );
-      console.log('✅ Image saved with Client SDK');
+      
+      console.log('✅ Admin SDK upload successful:', imageUrl);
       isFirebaseStorage = true;
-    } catch (clientError) {
-      console.error('❌ Client SDK failed, using temporary fallback:', clientError);
-        
-        // 両方失敗した場合は一時ストレージを使用
-        const tempImageId = generateImageId();
-        storeTempImage(tempImageId, imageBase64, userId, characterId);
-        imageUrl = `/api/temp-image/${tempImageId}`;
-        console.log('🔄 Using temp storage fallback, ID:', tempImageId);
+      
+    } catch (adminError: any) {
+      console.warn('⚠️ Admin SDK failed, using fallback strategy:', adminError.message);
+      
+      // Admin SDK失敗時は一時ストレージにフォールバック
+      const tempImageId = generateImageId();
+      storeTempImage(tempImageId, imageBase64, userId, characterId);
+      imageUrl = `/api/temp-image/${tempImageId}`;
+      console.log('🔄 Fallback: Image stored in temp storage, ID:', tempImageId);
+      
+      // Admin SDK失敗の理由をログ出力（デバッグ用）
+      if (adminError.message?.includes('not initialized')) {
+        console.log('📋 Admin SDK not initialized - likely missing environment variables');
+      } else if (adminError.message?.includes('permission')) {
+        console.log('📋 Admin SDK permission denied - check service account credentials');
+      } else if (adminError.message?.includes('quota')) {
+        console.log('📋 Admin SDK quota exceeded - check Firebase billing');
+      } else {
+        console.log('📋 Admin SDK unknown error:', adminError.code);
+      }
     }
 
     return NextResponse.json({

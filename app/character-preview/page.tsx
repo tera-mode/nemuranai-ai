@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { createCharacter } from '@/lib/character-actions';
 import { generateCharacterImage } from '@/lib/image-generation';
+import { permanentizeTemporaryImage } from '@/lib/browser-upload';
+import { syncFirebaseAuth, refreshFirebaseAuth } from '@/lib/firebase-auth-sync';
 import { CharacterRace, CharacterGender, CharacterAge, SkinTone, PersonalityType, BusinessDomain } from '@/types/database';
 import { getRaceLabel, getGenderLabel, getAgeLabel, getSkinToneLabel, getPersonalityLabel, getDomainLabel, getThemeColorOptions } from '@/lib/translations';
 
@@ -192,10 +194,25 @@ function CharacterPreviewContent() {
         return;
       }
 
+      // Admin SDK で永続化されている可能性があるため、URLをそのまま使用
+      let finalImageUrl = generatedImageUrl;
+      if (generatedImageUrl) {
+        console.log('📋 Using provided image URL for character creation:', generatedImageUrl);
+        
+        // Admin SDK成功時はFirebase Storage URL、失敗時は一時ストレージURL
+        if (generatedImageUrl.startsWith('https://')) {
+          console.log('✅ Firebase Storage URL detected - image already permanent');
+        } else if (generatedImageUrl.startsWith('/api/temp-image/')) {
+          console.log('⏰ Temporary storage URL - image will persist until server restart');
+        }
+        
+        finalImageUrl = generatedImageUrl;
+      }
+
       await createCharacter({
         ...characterData,
         userId,
-        profileImageUrl: generatedImageUrl || undefined
+        profileImageUrl: finalImageUrl || undefined
       });
 
       router.push('/home?refresh=true');

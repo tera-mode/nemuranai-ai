@@ -290,67 +290,107 @@ export async function generateCharacterImage(
   }
 }
 
-// Firebase Storageに画像を保存
+// Firebase Storageに画像を保存（Vercel対応版）
 export async function saveGeneratedImageToStorage(
   imageBuffer: Buffer, 
   userId: string,
-  characterId?: string
+  characterId?: string,
+  maxRetries: number = 3
 ): Promise<string> {
-  try {
-    // Firebase Storage設定をデバッグ
-    console.log('🔥 Firebase Storage - Starting upload for user:', userId);
-    console.log('🔥 Storage instance app config:', {
-      projectId: storage.app.options.projectId,
-      storageBucket: storage.app.options.storageBucket,
-      authDomain: storage.app.options.authDomain
-    });
-    
-    // ファイル名とパスを生成
-    const timestamp = Date.now();
-    const fileName = characterId 
-      ? `character-${characterId}-${timestamp}.png`
-      : `design-${userId}-${timestamp}.png`;
-    const filePath = characterId 
-      ? `character-images/${fileName}`
-      : `design-images/${fileName}`;
-    
-    console.log('📁 File path:', filePath);
-    console.log('📏 Image buffer size:', imageBuffer.length, 'bytes');
-    
-    const storageRef = ref(storage, filePath);
-    console.log('📦 Storage ref created:', {
-      bucket: storageRef.bucket,
-      fullPath: storageRef.fullPath,
-      name: storageRef.name
-    });
-    
-    // まずシンプルなメタデータでアップロード試行
-    const metadata = {
-      contentType: 'image/png'
-    };
-    
-    console.log('⬆️ Starting upload to Firebase Storage...');
-    
+  let lastError: any;
+  
+  // リトライ機構付きでアップロードを試行
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const uploadResult = await uploadBytes(storageRef, imageBuffer, metadata);
-      console.log('✅ Upload completed:', uploadResult.metadata.fullPath);
+      console.log(`🔥 Firebase Storage - Upload attempt ${attempt}/${maxRetries} for user:`, userId);
       
-      const downloadURL = await getDownloadURL(uploadResult.ref);
-      console.log('🔗 Download URL obtained:', downloadURL);
+      if (attempt === 1) {
+        // 初回のみ設定をデバッグ出力
+        console.log('🔥 Storage instance app config:', {
+          projectId: storage.app.options.projectId,
+          storageBucket: storage.app.options.storageBucket,
+          authDomain: storage.app.options.authDomain
+        });
+      }
+      
+      // ファイル名とパスを生成（リトライ時は新しいタイムスタンプを使用）
+      const timestamp = Date.now() + attempt; // リトライ時の重複を防ぐ
+      const fileName = characterId 
+        ? `character-${characterId}-${timestamp}.png`
+        : `design-${userId}-${timestamp}.png`;
+      const filePath = characterId 
+        ? `character-images/${fileName}`
+        : `design-images/${fileName}`;
+      
+      console.log(`📁 Attempt ${attempt} - File path:`, filePath);
+      console.log('📏 Image buffer size:', imageBuffer.length, 'bytes');
+      
+      const storageRef = ref(storage, filePath);
+      
+      // Vercel環境に最適化されたメタデータ
+      const metadata = {
+        contentType: 'image/png',
+        customMetadata: {
+          userId: userId,
+          characterId: characterId || 'temp',
+          uploadedAt: new Date().toISOString(),
+          source: 'ai-character-generation',
+          attempt: attempt.toString()
+        }
+      };
+      
+      console.log(`⬆️ Attempt ${attempt} - Starting upload to Firebase Storage...`);
+      
+      // アップロード実行（タイムアウト設定付き）
+      const uploadPromise = uploadBytes(storageRef, imageBuffer, metadata);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Upload timeout')), 30000)
+      );
+      
+      const uploadResult = await Promise.race([uploadPromise, timeoutPromise]) as any;
+      console.log(`✅ Attempt ${attempt} - Upload completed:`, uploadResult.metadata.fullPath);
+      
+      // ダウンロードURL取得（タイムアウト設定付き）
+      const urlPromise = getDownloadURL(uploadResult.ref);
+      const urlTimeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('URL fetch timeout')), 15000)
+      );
+      
+      const downloadURL = await Promise.race([urlPromise, urlTimeoutPromise]) as string;
+      console.log(`🔗 Attempt ${attempt} - Download URL obtained:`, downloadURL);
       
       return downloadURL;
+      
     } catch (uploadError: any) {
-      console.error('❌ Upload failed with detailed error:', {
+      lastError = uploadError;
+      console.error(`❌ Attempt ${attempt} failed with error:`, {
         code: uploadError.code,
         message: uploadError.message,
         status: uploadError.status_,
         serverResponse: uploadError.serverResponse,
         customData: uploadError.customData
       });
-      throw uploadError;
+      
+      // 最終試行でない場合は待機してリトライ
+      if (attempt < maxRetries) {
+        const waitTime = Math.min(1000 * attempt, 5000); // 指数バックオフ（最大5秒）
+        console.log(`⏱️ Waiting ${waitTime}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
     }
-  } catch (error) {
-    console.error('Firebase Storage upload error:', error);
-    throw new Error(`画像のアップロードに失敗しました: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+  
+  // すべてのリトライが失敗した場合
+  console.error(`❌ All ${maxRetries} upload attempts failed. Last error:`, lastError);
+  
+  // より具体的なエラーメッセージを提供
+  if (lastError?.code === 'storage/unauthorized') {
+    throw new Error('Firebase Storage権限エラー - 認証設定を確認してください');
+  } else if (lastError?.code === 'storage/quota-exceeded') {
+    throw new Error('Firebase Storageクォータ超過エラー');
+  } else if (lastError?.message?.includes('timeout')) {
+    throw new Error('Firebase Storageアップロードタイムアウト - ネットワーク接続を確認してください');
+  } else {
+    throw new Error(`画像のアップロードに失敗しました: ${lastError?.message || 'Unknown error'}`);
   }
 }
