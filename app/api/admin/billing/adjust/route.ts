@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { adjustStamina, adjustSummonContracts, getUserBillingInfo } from '@/lib/billing-service';
+import { isAdminUser } from '@/lib/debug-auth';
 
 // Admin権限でスタミナ・召喚契約書を調整
 export async function POST(request: NextRequest) {
@@ -11,10 +12,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Admin権限チェック
-    const adminUser = await getUserBillingInfo(session.user.id);
-    if (!adminUser?.isAdmin) {
-      return NextResponse.json({ error: 'Admin permission required' }, { status: 403 });
+    // Admin権限チェック（デバッグ認証も考慮）
+    const isDebugAdmin = isAdminUser(session);
+    if (!isDebugAdmin) {
+      const adminUser = await getUserBillingInfo(session.user.id);
+      if (!adminUser?.isAdmin) {
+        return NextResponse.json({ error: 'Admin permission required' }, { status: 403 });
+      }
     }
 
     const { targetUserId, type, amount, reason } = await request.json();
@@ -29,9 +33,9 @@ export async function POST(request: NextRequest) {
 
     let result;
     if (type === 'stamina') {
-      result = await adjustStamina(session.user.id, targetUserId, amount, reason);
+      result = await adjustStamina(session.user.id, targetUserId, amount, reason, isDebugAdmin);
     } else {
-      result = await adjustSummonContracts(session.user.id, targetUserId, amount, reason);
+      result = await adjustSummonContracts(session.user.id, targetUserId, amount, reason, isDebugAdmin);
     }
 
     if (!result.success) {
@@ -57,10 +61,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Admin権限チェック
-    const adminUser = await getUserBillingInfo(session.user.id);
-    if (!adminUser?.isAdmin) {
-      return NextResponse.json({ error: 'Admin permission required' }, { status: 403 });
+    // Admin権限チェック（デバッグ認証も考慮）
+    const isDebugAdmin = isAdminUser(session);
+    if (!isDebugAdmin) {
+      const adminUser = await getUserBillingInfo(session.user.id);
+      if (!adminUser?.isAdmin) {
+        return NextResponse.json({ error: 'Admin permission required' }, { status: 403 });
+      }
     }
 
     const { searchParams } = new URL(request.url);

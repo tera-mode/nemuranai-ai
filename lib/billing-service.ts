@@ -130,16 +130,18 @@ export async function consumeSummonContract(userId: string, amount: number = 1):
 }
 
 // Admin権限でスタミナを追加/削除
-export async function adjustStamina(adminUserId: string, targetUserId: string, amount: number, reason: string): Promise<{ success: boolean; newStamina: number; error?: string }> {
+export async function adjustStamina(adminUserId: string, targetUserId: string, amount: number, reason: string, skipAdminCheck: boolean = false): Promise<{ success: boolean; newStamina: number; error?: string }> {
   if (!db) {
     throw new Error('Firebase Admin not initialized');
   }
 
   try {
-    // Admin権限チェック
-    const adminDoc = await db.collection('users').doc(adminUserId).get();
-    if (!adminDoc.exists || !adminDoc.data()?.isAdmin) {
-      return { success: false, newStamina: 0, error: 'Admin permission required' };
+    // Admin権限チェック（skipAdminCheckがtrueの場合はスキップ）
+    if (!skipAdminCheck) {
+      const adminDoc = await db.collection('users').doc(adminUserId).get();
+      if (!adminDoc.exists || !adminDoc.data()?.isAdmin) {
+        return { success: false, newStamina: 0, error: 'Admin permission required' };
+      }
     }
 
     const userRef = db.collection('users').doc(targetUserId);
@@ -190,16 +192,18 @@ export async function adjustStamina(adminUserId: string, targetUserId: string, a
 }
 
 // Admin権限で召喚契約書を追加/削除
-export async function adjustSummonContracts(adminUserId: string, targetUserId: string, amount: number, reason: string): Promise<{ success: boolean; newContracts: number; error?: string }> {
+export async function adjustSummonContracts(adminUserId: string, targetUserId: string, amount: number, reason: string, skipAdminCheck: boolean = false): Promise<{ success: boolean; newContracts: number; error?: string }> {
   if (!db) {
     throw new Error('Firebase Admin not initialized');
   }
 
   try {
-    // Admin権限チェック
-    const adminDoc = await db.collection('users').doc(adminUserId).get();
-    if (!adminDoc.exists || !adminDoc.data()?.isAdmin) {
-      return { success: false, newContracts: 0, error: 'Admin permission required' };
+    // Admin権限チェック（skipAdminCheckがtrueの場合はスキップ）
+    if (!skipAdminCheck) {
+      const adminDoc = await db.collection('users').doc(adminUserId).get();
+      if (!adminDoc.exists || !adminDoc.data()?.isAdmin) {
+        return { success: false, newContracts: 0, error: 'Admin permission required' };
+      }
     }
 
     const userRef = db.collection('users').doc(targetUserId);

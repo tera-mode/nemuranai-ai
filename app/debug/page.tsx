@@ -80,6 +80,13 @@ export default function DebugDashboard() {
       color: 'from-green-500 to-emerald-500'
     },
     {
+      title: '課金システム管理',
+      description: 'スタミナ・召喚契約書調整、決済テスト、課金情報管理',
+      path: '/debug/billing',
+      icon: '💰',
+      color: 'from-yellow-500 to-amber-500'
+    },
+    {
       title: 'ストレージ管理',
       description: 'Firebase Storage、一時ストレージ、画像管理',
       path: '/debug/storage',

@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { PageHeader } from '@/components/PageHeader';
+import { useRouter } from 'next/navigation';
+import DebugAuth from '@/components/DebugAuth';
 import { PRODUCT_PRICES } from '@/types/database';
 
 interface UserBillingInfo {
@@ -28,6 +29,7 @@ interface ProductPriceEditable {
 
 export default function BillingDebugPage() {
   const { data: session } = useSession();
+  const router = useRouter();
   const [userInfo, setUserInfo] = useState<UserBillingInfo | null>(null);
   const [searchUserId, setSearchUserId] = useState('');
   const [loading, setLoading] = useState(false);
@@ -154,44 +156,56 @@ export default function BillingDebugPage() {
     }
   };
 
-  if (!session) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-        <PageHeader title="課金デバッグ" showBillingStatus={false} />
-        <div className="pt-20 px-4">
-          <div className="max-w-4xl mx-auto">
-            <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4">
-              <p className="text-red-200">ログインが必要です</p>
+
+  return (
+    <DebugAuth>
+      <div className="min-h-screen relative">
+        {/* 背景画像 */}
+        <div 
+          className="fixed inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: 'url(/bg001.jpg)' }}
+        />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-[2px]" />
+        
+        {/* ヘッダー */}
+        <div className="relative z-10 bg-black/20 backdrop-blur-sm border-b border-white/20">
+          <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => router.push('/debug')}
+                className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+              >
+                ←
+              </button>
+              <div className="text-3xl">💰</div>
+              <div>
+                <h1 className="text-2xl font-bold text-white drop-shadow-lg">課金システム管理</h1>
+                <p className="text-white/60 text-sm">スタミナ・召喚契約書調整、決済テスト</p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    );
-  }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-      <PageHeader title="課金システム デバッグ" showBillingStatus={false} />
-      
-      <div className="pt-20 px-4 pb-8">
-        <div className="max-w-6xl mx-auto space-y-6">
+        {/* コンテンツ */}
+        <div className="relative z-10 max-w-7xl mx-auto px-4 py-8">
+          <div className="space-y-8">
           
           {/* エラー・成功メッセージ */}
           {error && (
-            <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4">
+            <div className="bg-red-500/20 backdrop-blur-md rounded-xl p-4 border border-red-500/30">
               <p className="text-red-200">{error}</p>
             </div>
           )}
           
           {message && (
-            <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-4">
+            <div className="bg-green-500/20 backdrop-blur-md rounded-xl p-4 border border-green-500/30">
               <p className="text-green-200">{message}</p>
             </div>
           )}
 
           {/* ユーザー検索 */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
-            <h2 className="text-xl font-bold text-white mb-4">ユーザー検索・管理</h2>
+          <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
+            <h2 className="text-xl font-bold text-white mb-4 drop-shadow-lg">ユーザー検索・管理</h2>
             <div className="flex gap-4 mb-4">
               <input
                 type="text"
@@ -318,8 +332,8 @@ export default function BillingDebugPage() {
           </div>
 
           {/* 商品価格設定 */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
-            <h2 className="text-xl font-bold text-white mb-4">商品価格設定</h2>
+          <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
+            <h2 className="text-xl font-bold text-white mb-4 drop-shadow-lg">商品価格設定</h2>
             <p className="text-white/70 mb-4 text-sm">
               ⚠️ これは表示用です。実際の価格変更はコードの PRODUCT_PRICES 定数を変更してください。
             </p>
@@ -350,8 +364,8 @@ export default function BillingDebugPage() {
           </div>
 
           {/* デバッグ用リセット */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
-            <h2 className="text-xl font-bold text-white mb-4">デバッグ用リセット</h2>
+          <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
+            <h2 className="text-xl font-bold text-white mb-4 drop-shadow-lg">デバッグ用リセット</h2>
             <p className="text-white/70 mb-4 text-sm">
               ⚠️ 開発環境でのみ利用可能。現在のユーザーの課金情報をデバッグ用の値にリセットします。
             </p>
@@ -364,8 +378,8 @@ export default function BillingDebugPage() {
           </div>
 
           {/* 決済テスト */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
-            <h2 className="text-xl font-bold text-white mb-4">決済テスト</h2>
+          <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
+            <h2 className="text-xl font-bold text-white mb-4 drop-shadow-lg">決済テスト</h2>
             <p className="text-white/70 mb-4 text-sm">
               ⚠️ テスト環境での決済テストを行います。実際の決済は発生しません（Stripeテストモード）。
             </p>
@@ -392,8 +406,8 @@ export default function BillingDebugPage() {
           </div>
 
           {/* 現在のプラン設定表示 */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
-            <h2 className="text-xl font-bold text-white mb-4">現在のプラン設定</h2>
+          <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
+            <h2 className="text-xl font-bold text-white mb-4 drop-shadow-lg">現在のプラン設定</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-white/5 rounded-lg p-4">
                 <h3 className="text-white font-semibold mb-2">無料プラン</h3>
@@ -417,8 +431,9 @@ export default function BillingDebugPage() {
               </div>
             </div>
           </div>
+          </div>
         </div>
       </div>
-    </div>
+    </DebugAuth>
   );
 }
