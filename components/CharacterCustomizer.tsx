@@ -241,7 +241,7 @@ export function CharacterCustomizer({ characterData, onUpdate }: CharacterCustom
           <div>
             <label className="block text-white/90 text-sm font-medium mb-3">専門分野</label>
             <div className="grid grid-cols-2 gap-3">
-              {(['sales', 'marketing', 'support', 'analysis', 'secretary', 'strategy', 'designer', 'writer'] as BusinessDomain[]).map((domain) => {
+              {(['sales', 'marketing', 'support', 'analysis', 'secretary', 'strategy', 'designer', 'writer', 'fortune-teller', 'trainer', 'health-enthusiast', 'legal-expert'] as BusinessDomain[]).map((domain) => {
                 const domainEmojis = {
                   sales: '💼',
                   marketing: '📱',
@@ -250,7 +250,11 @@ export function CharacterCustomizer({ characterData, onUpdate }: CharacterCustom
                   secretary: '📋',
                   strategy: '🎯',
                   designer: '🎨',
-                  writer: '✍️'
+                  writer: '✍️',
+                  'fortune-teller': '🔮',
+                  trainer: '💪',
+                  'health-enthusiast': '🌱',
+                  'legal-expert': '⚖️'
                 };
                 return (
                   <button

@@ -71,7 +71,11 @@ export const getDomainLabel = (domain: BusinessDomain): string => {
     secretary: '秘書・アシスタント',
     strategy: '戦略・企画',
     designer: 'デザイナー',
-    writer: 'ライター'
+    writer: 'ライター',
+    'fortune-teller': '占い師',
+    trainer: 'トレーナー',
+    'health-enthusiast': '健康オタク',
+    'legal-expert': '法律オタク'
   };
   return domainLabels[domain] || domain;
 };

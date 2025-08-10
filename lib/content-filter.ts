@@ -93,11 +93,8 @@ export function sanitizePrompt(prompt: string): string {
     'clean'
   ];
   
-  // 不適切なコンテンツが含まれている場合は、安全なプロンプトに置き換え
-  if (containsInappropriateContent(prompt)) {
-    console.warn('Inappropriate content detected in prompt, using safe alternative');
-    sanitized = `professional anime character portrait, business attire, ${safetyKeywords.join(', ')}`;
-  }
+  // sanitizePrompt は最後の安全網として軽微な修正のみ行う
+  // メインの不適切コンテンツチェックは generateAnimePrompt で行われる
   
   // 追加の安全性キーワードを付加
   if (!sanitized.includes('safe for work') && !sanitized.includes('appropriate')) {

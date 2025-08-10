@@ -63,7 +63,11 @@ const domainOutfits: Record<BusinessDomain, string> = {
   secretary: 'office attire, notepad, organized desk, scheduling tools, efficient posture',
   strategy: 'formal suit, strategic planning pose, whiteboard with diagrams, leadership aura',
   designer: 'creative outfit, design tools, color palette, artistic workspace, inspirational pose',
-  writer: 'comfortable writing attire, notebook, pen, bookshelves, contemplative expression'
+  writer: 'comfortable writing attire, notebook, pen, bookshelves, contemplative expression',
+  'fortune-teller': 'mystical robes, tarot cards, crystal ball, magical accessories, fortune telling setup',
+  trainer: 'athletic wear, fitness equipment, energetic pose, motivational expression, gym environment',
+  'health-enthusiast': 'active lifestyle clothing, health supplements, yoga mat, wellness accessories, healthy living vibe',
+  'legal-expert': 'formal business attire, law books, legal documents, confident professional pose, office setting'
 };
 
 // 背景・環境・ストーリー要素を生成
@@ -80,7 +84,11 @@ function generateStoryElements(character: any): string {
     secretary: 'executive office, organized desk, professional atmosphere',
     strategy: 'conference room, strategic planning boards, executive environment',
     designer: 'art studio, creative workspace, design materials scattered around',
-    writer: 'cozy library, bookshelves, warm lighting, writing desk'
+    writer: 'cozy library, bookshelves, warm lighting, writing desk',
+    'fortune-teller': 'mystical room, candles, crystals, fortune telling table, magical atmosphere',
+    trainer: 'modern gym, fitness equipment, motivational posters, energetic lighting',
+    'health-enthusiast': 'wellness center, natural lighting, healthy lifestyle elements, zen atmosphere',
+    'legal-expert': 'law office, legal library, professional desk, formal business setting'
   };
 
   const environment = environmentMap[character.domain] || 'professional office environment';
@@ -175,16 +183,12 @@ export async function generateAnimePrompt(character: any): Promise<PromptGenerat
 
   const basePrompt = `anime style, highly detailed, beautiful ${character.name || 'AI assistant'}`;
   
-  // バックストーリーを翻訳して前半に強く反映させる
+  // バックストーリーを翻訳
   const translatedBackstory = character.backstory ? await translateToEnglish(character.backstory) : '';
-  const backstoryPrefix = translatedBackstory ? `${translatedBackstory}, ` : '';
+  const backstoryElement = translatedBackstory ? `${translatedBackstory}, ` : '';
   
-  // 肌色と年齢を最初に強調する
-  const primaryFeatures = `${skinToneFeature}, ${ageFeature}, ${genderFeature}`;
-  const secondaryFeatures = `${raceFeature}, ${personalityMood}`;
-  const characterPersonality = `${domainOutfit}`;
-  
-  const fullPrompt = `${basePrompt}, ${backstoryPrefix}${primaryFeatures}, ${secondaryFeatures}, ${characterPersonality}, ${storyElements}, ${composition}`;
+  // プロンプト構成を正常な順序に戻す
+  const fullPrompt = `${basePrompt}, ${backstoryElement}${genderFeature}, ${ageFeature}, ${skinToneFeature}, ${raceFeature}, ${personalityMood}, ${domainOutfit}, ${storyElements}, ${composition}`;
   
   // プロンプト全体の安全性チェックと修正
   const sanitizedPrompt = sanitizePrompt(fullPrompt);

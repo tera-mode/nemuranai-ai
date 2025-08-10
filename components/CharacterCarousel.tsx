@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { AICharacter } from '@/types/database';
 import { getDomainLabel, getPersonalityLabel, getRaceLabel, getGenderLabel, getAgeLabel, getSkinToneLabel } from '@/lib/translations';
 
@@ -12,6 +12,10 @@ interface CharacterCarouselProps {
 
 export function CharacterCarousel({ characters, onCharacterSelect, onCreateCharacter }: CharacterCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [currentX, setCurrentX] = useState(0);
+  const carouselRef = useRef<HTMLDivElement>(null);
 
   // キャラクター + 追加ボタンのアイテム配列
   const items: (AICharacter | { id: string; type: 'add' })[] = [...characters, { id: 'add', type: 'add' as const }];
@@ -26,6 +30,64 @@ export function CharacterCarousel({ characters, onCharacterSelect, onCreateChara
 
   const goToSlide = (index: number) => {
     setCurrentIndex(index);
+  };
+
+  // スワイプ機能のイベントハンドラー
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setIsDragging(true);
+    setStartX(e.touches[0].clientX);
+    setCurrentX(e.touches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return;
+    setCurrentX(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    
+    const diffX = startX - currentX;
+    const threshold = 50; // スワイプ判定の閾値
+
+    if (Math.abs(diffX) > threshold) {
+      if (diffX > 0) {
+        // 左にスワイプ → 次へ
+        nextSlide();
+      } else {
+        // 右にスワイプ → 前へ
+        prevSlide();
+      }
+    }
+  };
+
+  // マウスでのドラッグ対応
+  const handleMouseStart = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    setStartX(e.clientX);
+    setCurrentX(e.clientX);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    setCurrentX(e.clientX);
+  };
+
+  const handleMouseEnd = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    
+    const diffX = startX - currentX;
+    const threshold = 50;
+
+    if (Math.abs(diffX) > threshold) {
+      if (diffX > 0) {
+        nextSlide();
+      } else {
+        prevSlide();
+      }
+    }
   };
 
   if (characters.length === 0) {
@@ -48,7 +110,17 @@ export function CharacterCarousel({ characters, onCharacterSelect, onCreateChara
   return (
     <div className="relative z-0">
       {/* カルーセル本体 */}
-      <div className="bg-white/15 backdrop-blur-md rounded-2xl border border-white/20 overflow-hidden h-72 relative">
+      <div 
+        ref={carouselRef}
+        className="bg-white/15 backdrop-blur-md rounded-2xl border border-white/20 overflow-hidden h-72 relative cursor-grab active:cursor-grabbing"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onMouseDown={handleMouseStart}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseEnd}
+        onMouseLeave={handleMouseEnd}
+      >
         <div 
           className="flex transition-transform duration-300 ease-in-out h-full"
           style={{ transform: `translateX(-${currentIndex * 100}%)` }}
@@ -69,14 +141,21 @@ export function CharacterCarousel({ characters, onCharacterSelect, onCreateChara
               ) : (
                 // キャラクターカード
                 <button
-                  onClick={() => onCharacterSelect(item as AICharacter)}
+                  onClick={(e) => {
+                    // ドラッグ中はクリックを無効化
+                    if (Math.abs(startX - currentX) > 10) {
+                      e.preventDefault();
+                      return;
+                    }
+                    onCharacterSelect(item as AICharacter);
+                  }}
                   className="w-full h-full relative group overflow-hidden"
                 >
                   {/* キャラクター背景画像 */}
                   {(item as AICharacter).profileImageUrl && (
                     <>
                       <div 
-                        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+                        className="absolute inset-0 bg-cover bg-top bg-no-repeat"
                         style={{ backgroundImage: `url(${(item as AICharacter).profileImageUrl})` }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
@@ -89,19 +168,15 @@ export function CharacterCarousel({ characters, onCharacterSelect, onCreateChara
                       <h3 className="text-xl font-bold text-white mb-1 drop-shadow-lg">
                         {(item as AICharacter).name}
                       </h3>
-                      <p className="text-white/90 text-sm drop-shadow">
-                        専門分野: {getDomainLabel((item as AICharacter).domain)}
+                      <p className="text-white/90 text-base font-bold drop-shadow mb-1">
+                        {getDomainLabel((item as AICharacter).domain)}
                       </p>
-                      <div className="text-white/80 text-xs mt-1 drop-shadow space-y-0.5">
-                        <p>
-                          {getPersonalityLabel((item as AICharacter).personality)} • {getRaceLabel((item as AICharacter).race)}
-                        </p>
+                      <p className="text-white/80 text-xs drop-shadow">
+                        {getPersonalityLabel((item as AICharacter).personality)} • {getRaceLabel((item as AICharacter).race)}
                         {(item as AICharacter).gender && (item as AICharacter).age && (
-                          <p>
-                            {getGenderLabel((item as AICharacter).gender)} • {getAgeLabel((item as AICharacter).age)}
-                          </p>
+                          ` • ${getGenderLabel((item as AICharacter).gender)} • ${getAgeLabel((item as AICharacter).age)}`
                         )}
-                      </div>
+                      </p>
                     </div>
                   </div>
                   
@@ -119,15 +194,19 @@ export function CharacterCarousel({ characters, onCharacterSelect, onCreateChara
         <>
           <button
             onClick={prevSlide}
-            className="absolute -left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/70 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-black/80 transition-colors z-10 shadow-lg border border-white/20"
+            className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center text-white/80 hover:bg-black/60 hover:text-white transition-all duration-300 z-10 shadow-lg border border-white/20"
           >
-            ←
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
           </button>
           <button
             onClick={nextSlide}
-            className="absolute -right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/70 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-black/80 transition-colors z-10 shadow-lg border border-white/20"
+            className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center text-white/80 hover:bg-black/60 hover:text-white transition-all duration-300 z-10 shadow-lg border border-white/20"
           >
-            →
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
           </button>
         </>
       )}

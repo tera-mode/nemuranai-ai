@@ -18,7 +18,8 @@ export type PersonalityType =
 // ビジネス専門分野
 export type BusinessDomain = 
   | 'sales' | 'marketing' | 'support' | 'analysis' 
-  | 'secretary' | 'strategy' | 'designer' | 'writer';
+  | 'secretary' | 'strategy' | 'designer' | 'writer'
+  | 'fortune-teller' | 'trainer' | 'health-enthusiast' | 'legal-expert';
 
 // ユーザープロファイル
 export interface UserProfile {

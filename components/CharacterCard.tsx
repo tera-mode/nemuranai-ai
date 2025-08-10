@@ -34,7 +34,11 @@ export function CharacterCard({ character, isSelected, onClick }: CharacterCardP
       secretary: '📋',
       strategy: '🎯',
       designer: '🎨',
-      writer: '✍️'
+      writer: '✍️',
+      'fortune-teller': '🔮',
+      trainer: '💪',
+      'health-enthusiast': '🌱',
+      'legal-expert': '⚖️'
     };
     return domainEmojis[domain] || '💼';
   };
@@ -48,7 +52,11 @@ export function CharacterCard({ character, isSelected, onClick }: CharacterCardP
       secretary: '秘書',
       strategy: '戦略企画',
       designer: 'デザイナー',
-      writer: 'ライター'
+      writer: 'ライター',
+      'fortune-teller': '占い師',
+      trainer: 'トレーナー',
+      'health-enthusiast': '健康オタク',
+      'legal-expert': '法律オタク'
     };
     return domainLabels[domain] || domain;
   };
@@ -67,7 +75,7 @@ export function CharacterCard({ character, isSelected, onClick }: CharacterCardP
         <div className="relative">
           {character.profileImageUrl ? (
             <div 
-              className="w-12 h-12 rounded-full bg-cover bg-center border-2 border-white/30"
+              className="w-12 h-12 rounded-full bg-cover bg-top border-2 border-white/30"
               style={{ backgroundImage: `url(${character.profileImageUrl})` }}
             />
           ) : (
