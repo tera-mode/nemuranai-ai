@@ -8,6 +8,11 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'AI社員は眠らない',
   description: 'ユーザーが自由にキャラメイクできるAI社員プラットフォーム',
+  icons: {
+    icon: '/nemuranai-ai_fav.png',
+    shortcut: '/nemuranai-ai_fav.png',
+    apple: '/nemuranai-ai_fav.png',
+  },
 }
 
 export default function RootLayout({

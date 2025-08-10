@@ -56,33 +56,39 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen relative">
+      {/* 背景画像 */}
+      <div 
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url(/bg001.jpg)' }}
+      />
+      <div className="fixed inset-0 bg-black/30 backdrop-blur-[2px]" />
+      
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="text-3xl">💤</div>
-              <h1 className="text-2xl font-bold text-slate-900">AI社員は眠らない</h1>
-            </div>
-            <button
-              onClick={() => router.push('/')}
-              className="text-slate-600 hover:text-slate-900 transition-colors"
-            >
-              ← ホームに戻る
-            </button>
-          </div>
+      <header className="relative z-50 flex justify-between items-center p-4">
+        <div className="flex items-center gap-3">
+          <img 
+            src="/nemuranai-ai_logo.png" 
+            alt="AI社員は眠らない ロゴ" 
+            className="h-16 w-auto drop-shadow-lg"
+          />
         </div>
+        <button
+          onClick={() => router.push('/')}
+          className="text-white/90 hover:text-white transition-colors drop-shadow-lg"
+        >
+          ← ホームに戻る
+        </button>
       </header>
 
       {/* Auth Form */}
-      <div className="flex items-center justify-center px-4 py-12">
-        <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+      <div className="relative z-10 flex items-center justify-center px-4 py-8">
+        <div className="bg-white/15 backdrop-blur-md rounded-2xl border border-white/20 p-8 w-full max-w-md">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-slate-900 mb-2">
+            <h2 className="text-3xl font-bold text-white mb-2 drop-shadow-lg">
               {isSignUp ? 'アカウント作成' : 'ログイン'}
             </h2>
-            <p className="text-slate-600">
+            <p className="text-white/90 drop-shadow">
               {isSignUp 
                 ? 'AI社員と一緒に働きましょう' 
                 : 'AI社員があなたを待っています'
@@ -93,7 +99,7 @@ export default function SignInPage() {
           {/* Email/Password Form */}
           <form onSubmit={handleEmailSignIn} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-white/90 mb-2 drop-shadow">
                 メールアドレス
               </label>
               <input
@@ -102,13 +108,13 @@ export default function SignInPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg focus:ring-2 focus:ring-white/50 focus:border-white/50 transition-colors text-white placeholder:text-white/60 backdrop-blur-sm"
                 placeholder="example@email.com"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-white/90 mb-2 drop-shadow">
                 パスワード
               </label>
               <input
@@ -118,19 +124,19 @@ export default function SignInPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg focus:ring-2 focus:ring-white/50 focus:border-white/50 transition-colors text-white placeholder:text-white/60 backdrop-blur-sm"
                 placeholder="6文字以上"
               />
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
+              <div className="bg-red-500/20 border border-red-400/30 text-red-100 px-4 py-3 rounded-lg text-sm backdrop-blur-sm">
                 {error}
               </div>
             )}
 
             {success && (
-              <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-lg text-sm">
+              <div className="bg-green-500/20 border border-green-400/30 text-green-100 px-4 py-3 rounded-lg text-sm backdrop-blur-sm">
                 {success}
               </div>
             )}
@@ -138,7 +144,7 @@ export default function SignInPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 px-4 rounded-lg font-semibold hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed transition-transform backdrop-blur-sm"
             >
               {loading ? '処理中...' : isSignUp ? 'アカウント作成' : 'ログイン'}
             </button>
@@ -152,7 +158,7 @@ export default function SignInPage() {
                 setError('');
                 setSuccess('');
               }}
-              className="text-indigo-600 hover:text-indigo-700 text-sm transition-colors"
+              className="text-white/80 hover:text-white text-sm transition-colors drop-shadow"
             >
               {isSignUp 
                 ? '既にアカウントをお持ちの方はこちら' 
@@ -163,15 +169,15 @@ export default function SignInPage() {
 
           {/* Divider */}
           <div className="flex items-center my-8">
-            <div className="flex-1 border-t border-slate-300"></div>
-            <span className="px-4 text-slate-500 text-sm">または</span>
-            <div className="flex-1 border-t border-slate-300"></div>
+            <div className="flex-1 border-t border-white/30"></div>
+            <span className="px-4 text-white/70 text-sm drop-shadow">または</span>
+            <div className="flex-1 border-t border-white/30"></div>
           </div>
 
           {/* Google Sign In */}
           <button
             onClick={() => signIn('google', { callbackUrl: '/home' })}
-            className="w-full bg-white border border-slate-300 text-slate-700 py-3 px-4 rounded-lg font-semibold hover:bg-slate-50 flex items-center justify-center gap-3 transition-colors"
+            className="w-full bg-white/20 border border-white/30 text-white py-3 px-4 rounded-lg font-semibold hover:bg-white/30 flex items-center justify-center gap-3 transition-colors backdrop-blur-sm"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -194,7 +200,7 @@ export default function SignInPage() {
             Googleでログイン
           </button>
 
-          <p className="text-center text-slate-500 text-xs mt-6">
+          <p className="text-center text-white/60 text-xs mt-6 drop-shadow">
             ログインすることで、利用規約とプライバシーポリシーに同意したものとみなします
           </p>
         </div>
