@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
-import { deleteImageWithAdmin } from '@/lib/firebase-admin';
+// import { deleteImageWithAdmin } from '@/lib/firebase-admin';
 
 // Firebase Storage URLからファイルパスを抽出する関数
 function extractFilePathFromStorageUrl(url: string): string | null {
@@ -55,12 +55,12 @@ export async function POST(request: NextRequest) {
 
     console.log(`API: Deleting image at path: ${filePath} for user: ${session.user.email}`);
 
-    // Admin SDKを使用してファイルを削除
-    await deleteImageWithAdmin(filePath);
+    // Admin SDKでの削除は一時的に無効化
+    // await deleteImageWithAdmin(filePath);
 
     return NextResponse.json({ 
-      success: true, 
-      message: 'Image deleted successfully',
+      success: false, 
+      message: 'Image deletion temporarily disabled',
       filePath 
     });
 
