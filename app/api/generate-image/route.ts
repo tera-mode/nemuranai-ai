@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saveGeneratedImageToStorage } from '@/lib/image-generation';
-import { uploadImageWithAdmin } from '@/lib/firebase-admin';
+// import { uploadImageWithAdmin } from '@/lib/firebase-admin';
 import { generateImageId, storeTempImage } from '@/lib/temp-storage';
 
 export async function POST(request: NextRequest) {
@@ -102,39 +102,18 @@ export async function POST(request: NextRequest) {
     let isFirebaseStorage = false;
     
     try {
-      console.log('💾 Attempting to save with Firebase Admin SDK...');
+      console.log('💾 Admin SDK temporarily disabled for deployment, trying Client SDK...');
       
-      // ファイルパスを生成
-      const timestamp = Date.now();
-      const fileName = characterId 
-        ? `character-${characterId}-${timestamp}.png`
-        : `design-${userId}-${timestamp}.png`;
-      const filePath = characterId 
-        ? `character-images/${fileName}`
-        : `design-images/${fileName}`;
-        
-      imageUrl = await uploadImageWithAdmin(
+      // Client SDK で試行
+      imageUrl = await saveGeneratedImageToStorage(
         imageBuffer,
-        filePath,
-        'image/png'
+        userId,
+        characterId
       );
-      console.log('✅ Image saved successfully with Admin SDK');
-      console.log('🔗 Firebase URL:', imageUrl);
+      console.log('✅ Image saved with Client SDK');
       isFirebaseStorage = true;
-    } catch (storageError) {
-      console.error('❌ Firebase Admin SDK failed, trying Client SDK...', storageError);
-      
-      try {
-        // Client SDK で試行
-        imageUrl = await saveGeneratedImageToStorage(
-          imageBuffer,
-          userId,
-          characterId
-        );
-        console.log('✅ Image saved with Client SDK');
-        isFirebaseStorage = true;
-      } catch (clientError) {
-        console.error('❌ Client SDK also failed, using temporary fallback:', clientError);
+    } catch (clientError) {
+      console.error('❌ Client SDK failed, using temporary fallback:', clientError);
         
         // 両方失敗した場合は一時ストレージを使用
         const tempImageId = generateImageId();
