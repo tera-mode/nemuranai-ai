@@ -1,6 +1,6 @@
 import { storage } from './firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { uploadImageWithAdmin, adminStorage } from './firebase-admin';
+// import { uploadImageWithAdmin, adminStorage } from './firebase-admin';
 
 export async function testFirebaseStorageConnection(): Promise<{
   success: boolean;
@@ -68,49 +68,14 @@ export async function testFirebaseAdminStorage(): Promise<{
   details?: any;
 }> {
   try {
-    console.log('🔍 Testing Firebase Admin Storage...');
-    
-    if (!adminStorage) {
-      return {
-        success: false,
-        message: 'Firebase Admin Storage not initialized'
-      };
-    }
-    
-    // テスト画像データ（1x1 PNG）
-    const testImageBuffer = Buffer.from([
-      0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
-      0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
-      0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-      0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
-      0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41,
-      0x54, 0x08, 0xD7, 0x63, 0xF8, 0x00, 0x00, 0x00,
-      0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x25,
-      0xDB, 0x56, 0xCA, 0x00, 0x00, 0x00, 0x00, 0x49,
-      0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82
-    ]);
-    
-    const testFilePath = 'test/admin-test.png';
-    const downloadUrl = await uploadImageWithAdmin(testImageBuffer, testFilePath, 'image/png');
-    
-    return {
-      success: true,
-      message: 'Firebase Admin Storage connection successful',
-      details: {
-        downloadUrl,
-        testFile: testFilePath
-      }
-    };
-    
-  } catch (error: any) {
-    console.error('❌ Firebase Admin Storage test failed:', error);
     return {
       success: false,
-      message: `Firebase Admin Storage test failed: ${error.message}`,
-      details: {
-        code: error.code,
-        message: error.message
-      }
+      message: 'Firebase Admin Storage test temporarily disabled'
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      message: 'Firebase Admin Storage test temporarily disabled'
     };
   }
 }
@@ -125,9 +90,8 @@ export function getStorageInfo() {
       authDomain: storage?.app?.options?.authDomain
     },
     adminStorage: {
-      hasAdminStorage: !!adminStorage,
-      adminProjectId: adminStorage?.app?.options?.projectId,
-      adminStorageBucket: adminStorage?.app?.options?.storageBucket
+      hasAdminStorage: false,
+      message: 'Admin storage temporarily disabled'
     }
   };
 }
