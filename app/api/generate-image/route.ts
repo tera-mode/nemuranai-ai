@@ -120,7 +120,6 @@ export async function POST(request: NextRequest) {
         storeTempImage(tempImageId, imageBase64, userId, characterId);
         imageUrl = `/api/temp-image/${tempImageId}`;
         console.log('🔄 Using temp storage fallback, ID:', tempImageId);
-      }
     }
 
     return NextResponse.json({
