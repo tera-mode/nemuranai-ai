@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { generateCharacterResponse } from '@/lib/claude';
 import { authOptions } from '@/lib/auth-options';
 import { createThread, addMessageToThread, generateThreadTitle } from '@/lib/thread-actions';
+import { consumeStamina } from '@/lib/billing-service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,6 +32,23 @@ export async function POST(request: NextRequest) {
       console.error('User ID not found in session:', session);
       return NextResponse.json(
         { error: 'User ID not found' },
+        { status: 400 }
+      );
+    }
+
+    // スタミナ消費チェック（チャットは5スタミナ消費）
+    const STAMINA_COST = 5;
+    const staminaResult = await consumeStamina(userId, STAMINA_COST);
+    
+    if (!staminaResult.success) {
+      return NextResponse.json(
+        { 
+          error: staminaResult.error === 'Insufficient stamina' 
+            ? `スタミナが不足しています。必要: ${STAMINA_COST}, 現在: ${staminaResult.currentStamina}`
+            : staminaResult.error,
+          currentStamina: staminaResult.currentStamina,
+          requiredStamina: STAMINA_COST
+        },
         { status: 400 }
       );
     }
@@ -81,6 +99,8 @@ export async function POST(request: NextRequest) {
       threadId: currentThreadId,
       titleGenerated, // タイトルが生成されたかどうか
       success: true,
+      staminaConsumed: STAMINA_COST,
+      remainingStamina: staminaResult.currentStamina
     });
 
   } catch (error) {

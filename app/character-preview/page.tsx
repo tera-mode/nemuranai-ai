@@ -23,58 +23,6 @@ function CharacterPreviewContent() {
   const [hasContentViolation, setHasContentViolation] = useState(false);
   const generationInProgress = useRef(false);
 
-  const generateImage = useCallback(async (data: any) => {
-    if (!session?.user || hasGeneratedImage || generationInProgress.current) {
-      console.log('Skipping image generation:', {
-        hasUser: !!session?.user,
-        hasGenerated: hasGeneratedImage,
-        inProgress: generationInProgress.current
-      });
-      return;
-    }
-    
-    generationInProgress.current = true; // 生成開始をマーク
-    setIsLoading(true);
-    setHasGeneratedImage(true); // フラグを立てて重複を防ぐ
-    
-    try {
-      const userId = session.user.id || session.user.email;
-      if (!userId) return;
-
-      console.log('Starting image generation for character:', data.name);
-      const result = await generateCharacterImage(data, userId);
-      
-      if (result.success && result.imageUrl) {
-        setGeneratedImageUrl(result.imageUrl);
-        
-        // キャラクターからのコメントを生成
-        const comment = generateCharacterComment(data);
-        setCharacterComment(comment);
-        console.log('Image generation completed successfully');
-      } else {
-        // 画像生成が失敗した場合
-        console.warn('Image generation failed:', result.error);
-        
-        let errorMessage = '画像の生成に失敗しましたが、キャラクターは作成できます。';
-        
-        if (result.isFiltered) {
-          errorMessage = result.error || 'キャラクター設定に不適切な内容が含まれています。設定を見直してください。';
-          // フィルタリングされた場合は再試行を許可せず、作成も禁止
-          setHasGeneratedImage(true);
-          setHasContentViolation(true);
-        } else {
-          errorMessage = result.error || '画像生成サービスが一時的に利用できません。キャラクターは作成できます。';
-          // サービスエラーの場合は再試行を許可する
-          setHasGeneratedImage(false);
-        }
-        
-        setCharacterComment(errorMessage);
-      }
-    } finally {
-      setIsLoading(false);
-      generationInProgress.current = false; // 生成終了をマーク
-    }
-  }, [session?.user, hasGeneratedImage]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -121,9 +69,52 @@ function CharacterPreviewContent() {
     // 画像生成は一度だけ実行
     if (!hasGeneratedImage && !generationInProgress.current && session?.user) {
       console.log('Triggering image generation from useEffect');
-      generateImage(data);
+      
+      // 画像生成を直接実行（デッドループ防止のため）
+      generationInProgress.current = true;
+      setIsLoading(true);
+      setHasGeneratedImage(true);
+      
+      const executeImageGeneration = async () => {
+        try {
+          const userId = session.user.id || session.user.email;
+          if (!userId) return;
+
+          console.log('Starting image generation for character:', data.name);
+          const result = await generateCharacterImage(data, userId, undefined, true); // キャラクター作成フラグ = true
+          
+          if (result.success && result.imageUrl) {
+            setGeneratedImageUrl(result.imageUrl);
+            const comment = generateCharacterComment(data);
+            setCharacterComment(comment);
+            console.log('Image generation completed successfully');
+          } else {
+            console.warn('Image generation failed:', result.error);
+            
+            let errorMessage = '画像の生成に失敗しましたが、キャラクターは作成できます。';
+            
+            if (result.isFiltered) {
+              errorMessage = result.error || 'キャラクター設定に不適切な内容が含まれています。設定を見直してください。';
+              setHasContentViolation(true);
+            } else if (result.error?.includes('スタミナが不足') || result.error?.includes('Insufficient stamina')) {
+              errorMessage = result.error || 'スタミナが不足しています。';
+            } else if (result.error?.includes('召喚契約書が不足') || result.error?.includes('Insufficient summon contracts')) {
+              errorMessage = result.error || '召喚契約書が不足しています。';
+            } else {
+              errorMessage = result.error || '画像生成サービスが一時的に利用できません。キャラクターは作成できます。';
+            }
+            
+            setCharacterComment(errorMessage);
+          }
+        } finally {
+          setIsLoading(false);
+          generationInProgress.current = false;
+        }
+      };
+      
+      executeImageGeneration();
     }
-  }, [searchParams, status, router, generateImage, session?.user, hasGeneratedImage]);
+  }, [searchParams, status, router, session?.user, hasGeneratedImage]);
 
   const generateCharacterComment = (data: any): string => {
     const comments = {

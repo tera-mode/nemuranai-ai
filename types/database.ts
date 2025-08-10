@@ -26,9 +26,20 @@ export interface UserProfile {
   id: string;
   email: string;
   displayName: string;
-  subscription: 'free' | 'basic' | 'premium';
+  subscription: 'free' | 'premium';
   createdAt: Date;
   lastLogin: Date;
+  // 課金機能関連
+  summonContracts: number;          // 召喚契約書の枚数
+  stamina: number;                  // スタミナ
+  maxStamina: number;              // 最大スタミナ（プランによって変わる）
+  lastStaminaRecovery: Date;       // 最後のスタミナ回復時刻
+  stripeCustomerId?: string;       // Stripe顧客ID
+  subscriptionStatus: 'inactive' | 'active' | 'past_due' | 'canceled';
+  subscriptionId?: string;         // StripeサブスクリプションID
+  subscriptionStartDate?: Date;    // サブスクリプション開始日
+  subscriptionEndDate?: Date;      // サブスクリプション終了日
+  isAdmin?: boolean;              // 管理者権限
 }
 
 // AIキャラクター定義
@@ -97,3 +108,57 @@ export interface KnowledgeItem {
   createdAt: Date;
   updatedAt: Date;
 }
+
+// 課金システム関連の型定義
+export interface BillingTransaction {
+  id: string;
+  userId: string;
+  type: 'subscription' | 'one_time_purchase';
+  productType: 'premium_plan' | 'summon_contracts' | 'stamina_recovery';
+  amount: number;                 // 金額（円）
+  quantity: number;              // 数量
+  stripePaymentIntentId?: string;
+  status: 'pending' | 'completed' | 'failed' | 'refunded';
+  createdAt: Date;
+  completedAt?: Date;
+}
+
+export interface ProductPrice {
+  id: string;
+  productType: 'premium_plan' | 'summon_contracts' | 'stamina_recovery';
+  name: string;
+  description: string;
+  price: number;                 // 価格（円）
+  quantity: number;              // 提供される数量
+  stripePriceId: string;        // StripeのPrice ID
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// プラン設定
+export const PLAN_SETTINGS = {
+  free: {
+    initialSummonContracts: 5,
+    initialStamina: 20,
+    maxStamina: 50,
+    dailyStaminaRecovery: 10,
+    monthlyBonusSummonContracts: 0,
+    monthlyBonusStamina: 0
+  },
+  premium: {
+    initialSummonContracts: 25,    // 購入時5枚 + ボーナス20枚
+    initialStamina: 220,           // 購入時20 + ボーナス200
+    maxStamina: 500,
+    dailyStaminaRecovery: 10,
+    monthlyBonusSummonContracts: 20,
+    monthlyBonusStamina: 200
+  }
+} as const;
+
+// 商品価格設定
+export const PRODUCT_PRICES = {
+  premium_plan: 1980,         // 月額1980円
+  summon_contracts_10: 800,   // 召喚契約書10枚で800円
+  stamina_recovery_100: 800   // スタミナ回復100で800円
+} as const;

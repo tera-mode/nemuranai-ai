@@ -9,6 +9,7 @@ import { refreshFirestore } from '@/lib/firebase';
 import { AICharacter, ChatThread } from '@/types/database';
 import { HamburgerMenu } from '@/components/HamburgerMenu';
 import { CharacterCarousel } from '@/components/CharacterCarousel';
+import BillingStatus from '@/components/BillingStatus';
 
 function HomePageContent() {
   const { data: session, status } = useSession();
@@ -135,7 +136,10 @@ function HomePageContent() {
           </p>
         </div>
         
-        <HamburgerMenu />
+        <div className="flex items-center space-x-4">
+          <BillingStatus className="text-white" />
+          <HamburgerMenu />
+        </div>
       </header>
 
       {/* コンテンツ */}

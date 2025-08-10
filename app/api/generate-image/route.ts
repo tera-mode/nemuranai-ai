@@ -2,16 +2,51 @@ import { NextRequest, NextResponse } from 'next/server';
 import { saveGeneratedImageToStorage } from '@/lib/image-generation';
 import { uploadImageWithAdmin } from '@/lib/firebase-admin';
 import { generateImageId, storeTempImage } from '@/lib/temp-storage';
+import { consumeStamina, consumeSummonContract, getUserBillingInfo } from '@/lib/billing-service';
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, userId, characterId } = await request.json();
+    const { prompt, userId, characterId, isCharacterCreation } = await request.json();
+    let staminaResult;
 
     if (!prompt || !userId) {
       return NextResponse.json(
         { error: '必要なパラメータが不足しています' },
         { status: 400 }
       );
+    }
+
+    // キャラクター作成時は事前に召喚契約書の残数をチェックのみ（まだ消費しない）
+    if (isCharacterCreation) {
+      const userBilling = await getUserBillingInfo(userId);
+      
+      if (!userBilling || userBilling.summonContracts < 1) {
+        return NextResponse.json(
+          { 
+            error: `召喚契約書が不足しています。必要: 1枚, 現在: ${userBilling?.summonContracts || 0}枚`,
+            currentContracts: userBilling?.summonContracts || 0,
+            requiredContracts: 1
+          },
+          { status: 400 }
+        );
+      }
+    } else {
+      // 通常の画像生成時はスタミナを事前消費（既存の処理を維持）
+      const STAMINA_COST = 30;
+      staminaResult = await consumeStamina(userId, STAMINA_COST);
+      
+      if (!staminaResult.success) {
+        return NextResponse.json(
+          { 
+            error: staminaResult.error === 'Insufficient stamina' 
+              ? `スタミナが不足しています。必要: ${STAMINA_COST}, 現在: ${staminaResult.currentStamina}`
+              : staminaResult.error,
+            currentStamina: staminaResult.currentStamina,
+            requiredStamina: STAMINA_COST
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const stabilityApiKey = process.env.STABILITY_API_KEY;
@@ -144,13 +179,39 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    // キャラクター作成時は画像生成成功後に召喚契約書を消費
+    let contractResult;
+    if (isCharacterCreation) {
+      contractResult = await consumeSummonContract(userId, 1);
+      
+      if (!contractResult.success) {
+        console.error('Failed to consume summon contract after successful image generation:', contractResult.error);
+        // 画像生成は成功したが契約書消費に失敗した場合の警告
+        // この時点では既に画像は生成済みなので、エラーを返すのではなく警告ログのみ
+      }
+    }
+
+    // レスポンスに消費情報を含める
+    const finalResponse: any = {
       success: true,
       imageUrl,
       prompt,
       isTemp: !isFirebaseStorage,
       isFirebase: isFirebaseStorage
-    });
+    };
+
+    // 消費情報を追加（キャラクター作成時は召喚契約書、通常時はスタミナ）
+    if (isCharacterCreation && contractResult) {
+      finalResponse.contractsConsumed = 1;
+      finalResponse.remainingContracts = contractResult.currentContracts;
+    } else if (!isCharacterCreation) {
+      // 通常の画像生成時のスタミナ情報（既に事前消費済み）
+      const STAMINA_COST = 30;
+      finalResponse.staminaConsumed = STAMINA_COST;
+      finalResponse.remainingStamina = staminaResult?.currentStamina;
+    }
+
+    return NextResponse.json(finalResponse);
 
   } catch (error) {
     console.error('画像生成APIエラー:', error);

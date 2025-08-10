@@ -27,7 +27,9 @@
       "Bash(tasklist:*)",
       "Bash(npm ci:*)",
       "Bash(npm cache clean:*)",
-      "Bash(yarn install)"
+      "Bash(yarn install)",
+      "Bash(git log:*)",
+      "WebFetch(domain:vercel.com)"
     ],
     "deny": []
   }

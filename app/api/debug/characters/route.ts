@@ -1,41 +1,80 @@
-import { NextResponse } from 'next/server';
-import { getUserCharacters } from '@/lib/character-actions';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
+import { isAdminUser } from '@/lib/debug-auth';
+import { db } from '@/lib/firebase-admin';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // 認証チェック
     const session = await getServerSession(authOptions);
-    
-    if (!session?.user) {
+    if (!isAdminUser(session)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
-    const userId = session.user.id || session.user.email;
-    if (!userId) {
-      return NextResponse.json({ error: 'User ID not found' }, { status: 400 });
+
+    let totalCharacters = 0;
+    let characters: any[] = [];
+    let recentCharacters: any[] = [];
+
+    try {
+      if (db) {
+        // キャラクター数を取得
+        const charactersSnapshot = await db.collection('characters').get();
+        totalCharacters = charactersSnapshot.size;
+
+        // 最新のキャラクター5体を取得
+        const recentCharactersSnapshot = await db.collection('characters')
+          .orderBy('createdAt', 'desc')
+          .limit(5)
+          .get();
+
+        recentCharacters = recentCharactersSnapshot.docs.map((doc: any) => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || 'unknown'
+        }));
+
+        // 全キャラクターリスト（制限付き）
+        const allCharactersSnapshot = await db.collection('characters')
+          .orderBy('createdAt', 'desc')
+          .limit(50)
+          .get();
+
+        characters = allCharactersSnapshot.docs.map((doc: any) => ({
+          id: doc.id,
+          name: doc.data().name || 'Unknown',
+          userId: doc.data().userId || 'unknown',
+          personality: doc.data().personality || 'unknown',
+          domain: doc.data().domain || 'unknown',
+          profileImageUrl: doc.data().profileImageUrl,
+          createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || 'unknown'
+        }));
+      } else {
+        console.warn('Firestore database not available for characters query');
+      }
+    } catch (dbError) {
+      console.error('Firestore characters query error:', dbError);
     }
-    
-    // ユーザーのキャラクター一覧を取得
-    const characters = await getUserCharacters(userId);
-    
-    // デバッグ情報を含めてレスポンス
+
     return NextResponse.json({
       success: true,
-      userId,
-      charactersCount: characters.length,
-      characters: characters.map(char => ({
-        id: char.id,
-        name: char.name,
-        isActive: char.isActive,
-        createdAt: char.createdAt.toISOString()
-      }))
+      totalCharacters,
+      characters,
+      recentCharacters,
+      timestamp: new Date().toISOString()
     });
+
   } catch (error) {
-    console.error('Debug characters error:', error);
-    return NextResponse.json({ 
-      error: 'Internal Server Error', 
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    console.error('Characters debug API error:', error);
+    return NextResponse.json(
+      { 
+        success: false,
+        error: 'Failed to fetch character data',
+        totalCharacters: 0,
+        characters: [],
+        recentCharacters: []
+      },
+      { status: 500 }
+    );
   }
 }

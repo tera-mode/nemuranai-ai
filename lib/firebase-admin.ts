@@ -62,6 +62,24 @@ try {
 
 export const adminStorage = adminApp ? getStorage(adminApp) : null;
 
+// Admin SDK の利用可能性をチェックする関数
+export function isAdminSDKAvailable(): boolean {
+  return adminApp !== null && adminStorage !== null;
+}
+
+// Firebase データベース接続を取得
+export let db: any = null;
+try {
+  if (adminApp) {
+    const { getFirestore } = require('firebase-admin/firestore');
+    db = getFirestore(adminApp);
+    console.log('🔥 Firebase Admin Firestore initialized');
+  }
+} catch (error) {
+  console.error('❌ Firebase Admin Firestore initialization failed:', error);
+  db = null;
+}
+
 // Admin SDK を使った画像アップロード関数
 export async function uploadImageWithAdmin(
   imageBuffer: Buffer, 

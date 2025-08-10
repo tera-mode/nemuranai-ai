@@ -119,3 +119,11 @@ export function getStorageStats() {
     images
   };
 }
+
+// デバッグ用：一時ストレージをクリア
+export function clearTempStorage(): number {
+  const clearedCount = tempStorage.size;
+  tempStorage.clear();
+  console.log(`Cleared ${clearedCount} images from temp storage`);
+  return clearedCount;
+}

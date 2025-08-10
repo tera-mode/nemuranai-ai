@@ -215,7 +215,8 @@ export interface ImageGenerationResult {
 export async function generateCharacterImage(
   character: any,
   userId: string,
-  characterId?: string
+  characterId?: string,
+  isCharacterCreation: boolean = false
 ): Promise<ImageGenerationResult> {
   try {
     const promptResult = await generateAnimePrompt(character);
@@ -238,11 +239,44 @@ export async function generateCharacterImage(
         prompt: promptResult.prompt,
         userId,
         characterId: characterId || `temp-${Date.now()}`,
+        isCharacterCreation,
       }),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch {
+        const errorText = await response.text();
+        errorData = { error: errorText };
+      }
+      
+      // 400エラー（スタミナ不足など）の場合
+      if (response.status === 400) {
+        console.warn('Image generation failed with 400:', errorData);
+        
+        // スタミナ不足のエラーメッセージをチェック
+        if (errorData.error?.includes('スタミナが不足') || errorData.error?.includes('Insufficient stamina')) {
+          return {
+            success: false,
+            error: `${errorData.error || 'スタミナが不足しています'}\n\n💡 スタミナは毎日朝5時に回復するか、プレミアムプランでより多くのスタミナを獲得できます。`
+          };
+        }
+        
+        // 召喚契約書不足のエラーメッセージをチェック
+        if (errorData.error?.includes('召喚契約書が不足') || errorData.error?.includes('Insufficient summon contracts')) {
+          return {
+            success: false,
+            error: `${errorData.error || '召喚契約書が不足しています'}\n\n💡 召喚契約書はプレミアムプランや個別購入で獲得できます。`
+          };
+        }
+        
+        return {
+          success: false,
+          error: errorData.error || '画像生成リクエストが無効です'
+        };
+      }
       
       // 403エラーの場合は特別な処理（デッドループ防止）
       if (response.status === 403) {

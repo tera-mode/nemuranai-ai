@@ -1,14 +1,19 @@
 'use client';
 
 import { ReactNode } from 'react';
+import { useSession } from 'next-auth/react';
+import BillingStatus from './BillingStatus';
 
 interface PageHeaderProps {
   title: string;
   onBack?: () => void;
   rightComponent?: ReactNode;
+  showBillingStatus?: boolean;
 }
 
-export function PageHeader({ title, onBack, rightComponent }: PageHeaderProps) {
+export function PageHeader({ title, onBack, rightComponent, showBillingStatus = true }: PageHeaderProps) {
+  const { data: session } = useSession();
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/20">
       <div className="flex items-center justify-between px-4 py-4">
@@ -26,11 +31,18 @@ export function PageHeader({ title, onBack, rightComponent }: PageHeaderProps) {
           </h1>
         </div>
         
-        {rightComponent && (
-          <div>
-            {rightComponent}
-          </div>
-        )}
+        <div className="flex items-center space-x-4">
+          {/* 課金情報表示（ログイン済みの場合のみ） */}
+          {session && showBillingStatus && (
+            <BillingStatus className="text-white" />
+          )}
+          
+          {rightComponent && (
+            <div>
+              {rightComponent}
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );
