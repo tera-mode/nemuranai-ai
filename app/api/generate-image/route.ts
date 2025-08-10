@@ -114,13 +114,12 @@ export async function POST(request: NextRequest) {
       isFirebaseStorage = true;
     } catch (clientError) {
       console.error('❌ Client SDK failed, using temporary fallback:', clientError);
-        
-        // 両方失敗した場合は一時ストレージを使用
-        const tempImageId = generateImageId();
-        storeTempImage(tempImageId, imageBase64, userId, characterId);
-        imageUrl = `/api/temp-image/${tempImageId}`;
-        console.log('🔄 Using temp storage fallback, ID:', tempImageId);
-      }
+      
+      // Client SDK失敗の場合は一時ストレージを使用
+      const tempImageId = generateImageId();
+      storeTempImage(tempImageId, imageBase64, userId, characterId);
+      imageUrl = `/api/temp-image/${tempImageId}`;
+      console.log('🔄 Using temp storage fallback, ID:', tempImageId);
     }
 
     return NextResponse.json({
