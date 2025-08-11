@@ -93,9 +93,12 @@ export default function BillingStatus({ className = '' }: BillingStatusProps) {
 
   if (loading) {
     return (
-      <div className={`flex items-center space-x-4 ${className}`}>
+      <div className={`flex flex-col space-y-1 min-w-0 ${className}`}>
         <div className="animate-pulse">
-          <div className="h-6 w-20 bg-gray-300 rounded"></div>
+          <div className="h-3 w-16 bg-white/30 rounded"></div>
+        </div>
+        <div className="animate-pulse">
+          <div className="h-3 w-14 bg-white/30 rounded"></div>
         </div>
       </div>
     );
@@ -103,8 +106,8 @@ export default function BillingStatus({ className = '' }: BillingStatusProps) {
 
   if (error || !billingData) {
     return (
-      <div className={`flex items-center space-x-2 text-red-500 ${className}`}>
-        <span className="text-sm">⚠️ データ取得エラー</span>
+      <div className={`flex flex-col space-y-1 min-w-0 ${className}`}>
+        <span className="text-xs text-red-400">⚠️ エラー</span>
       </div>
     );
   }
@@ -114,29 +117,16 @@ export default function BillingStatus({ className = '' }: BillingStatusProps) {
   const isLowContracts = billingData.summonContracts <= 1;
 
   return (
-    <div className={`flex items-center space-x-4 ${className}`}>
+    <div className={`flex flex-col space-y-1 min-w-0 ${className}`}>
       {/* スタミナ表示 */}
       <div 
-        className="flex items-center space-x-2 cursor-help group relative"
+        className="flex items-center space-x-1 cursor-help group relative"
         title="スタミナ: AI機能の利用に必要なポイント。毎日朝5時に回復します。"
       >
-        <Zap className={`h-4 w-4 ${isLowStamina ? 'text-red-400' : 'text-white'}`} />
-        <div className="flex flex-col">
-          <div className="flex items-center space-x-1">
-            <span className={`text-sm font-medium ${isLowStamina ? 'text-red-300' : 'text-white'}`}>
-              {billingData.stamina}
-            </span>
-            <span className="text-xs text-white/70">/ {billingData.maxStamina}</span>
-          </div>
-          <div className="w-16 h-1 bg-white/30 rounded-full overflow-hidden">
-            <div 
-              className={`h-full transition-all duration-300 ${
-                isLowStamina ? 'bg-red-400' : 'bg-white'
-              }`}
-              style={{ width: `${Math.max(staminaPercentage, 2)}%` }}
-            />
-          </div>
-        </div>
+        <Zap className={`h-3 w-3 ${isLowStamina ? 'text-red-400' : 'text-white'}`} />
+        <span className={`text-xs font-medium ${isLowStamina ? 'text-red-300' : 'text-white'}`}>
+          {billingData.stamina}/{billingData.maxStamina}
+        </span>
         {isLowStamina && (
           <span className="text-xs text-red-300 animate-pulse">!</span>
         )}
@@ -150,11 +140,11 @@ export default function BillingStatus({ className = '' }: BillingStatusProps) {
 
       {/* 召喚契約書表示 */}
       <div 
-        className="flex items-center space-x-2 cursor-help group relative"
+        className="flex items-center space-x-1 cursor-help group relative"
         title="召喚契約書: AI社員の作成に必要なアイテム。"
       >
-        <ScrollText className={`h-4 w-4 ${isLowContracts ? 'text-red-400' : 'text-white'}`} />
-        <span className={`text-sm font-medium ${isLowContracts ? 'text-red-300' : 'text-white'}`}>
+        <ScrollText className={`h-3 w-3 ${isLowContracts ? 'text-red-400' : 'text-white'}`} />
+        <span className={`text-xs font-medium ${isLowContracts ? 'text-red-300' : 'text-white'}`}>
           {billingData.summonContracts}枚
         </span>
         {isLowContracts && (

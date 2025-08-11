@@ -123,24 +123,31 @@ function HomePageContent() {
       
       {/* ヘッダー */}
       <header className="relative z-50 flex justify-between items-center p-4">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <img 
-              src="/nemuranai-ai_logo.png" 
-              alt="AI社員は眠らない ロゴ" 
-              className="h-16 w-auto drop-shadow-lg"
-            />
-          </div>
-          <p className="text-white/90 text-sm drop-shadow">
-            おかえりなさい、{session.user?.name}さん
-          </p>
+        <div className="flex items-center">
+          <img 
+            src="/nemuranai-ai_logo.png" 
+            alt="AI社員は眠らない ロゴ" 
+            className="h-12 sm:h-14 md:h-16 lg:h-20 xl:h-24 w-auto max-w-[400px] drop-shadow-lg"
+          />
         </div>
         
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
           <BillingStatus className="text-white" />
           <HamburgerMenu />
         </div>
       </header>
+
+      {/* ウェルカムメッセージ */}
+      <div className="relative z-40 px-4 -mt-2 mb-4">
+        <div className="flex flex-col">
+          <p className="text-white/90 text-xs sm:text-sm drop-shadow leading-tight">
+            おかえりなさい
+          </p>
+          <p className="text-white font-medium text-sm sm:text-base drop-shadow leading-tight">
+            {session.user?.name}さん
+          </p>
+        </div>
+      </div>
 
       {/* コンテンツ */}
       <div className="relative z-0 px-4 pb-8">
