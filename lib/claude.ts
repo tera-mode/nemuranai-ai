@@ -416,27 +416,41 @@ async function handleSpecBuilderAnalysis(request: ChatRequest, character: any): 
   console.log('🔍 Spec builder request detection:', isSpecRequest);
   
   if (isSpecRequest) {
-    // 新しいセッションを開始
-    const session = await SpecBuilderManager.createSession(
-      threadId!,
-      userId,
-      message
-    );
+    // 新しい3ステップワークフロー: 詳細ヒアリングをスキップして直接プラン生成
+    console.log('🚀 Starting streamlined 3-step workflow');
     
-    // 初期質問を生成
-    const questions = SpecBuilderManager.generateInitialQuestions(message);
-    
-    // セッションに質問を保存
-    await SpecBuilderManager.updateSession(session.id, {
-      questions,
-      status: 'gathering_requirements'
-    });
-    
-    const response = formatSpecBuilderResponse(character, 
-      `承知いたしました。**「${message}」**の要件を整理させていただきます。\n\n` +
-      formatSpecBuilderQuestions(questions)
-    );
-    return response;
+    try {
+      // ステップ1: JobSpecを自動生成（詳細ヒアリング省略）
+      const jobSpec = await generateJobSpecFromMessage(threadId!, userId, message);
+      console.log('✅ JobSpec auto-generated:', jobSpec);
+      
+      // ステップ2: プランを即座に生成
+      const planSpec = PlannerManager.generatePlanSpec(jobSpec, DEFAULT_SKILL_REGISTRY);
+      
+      // セッションを作成・更新（簡略化）
+      const plannerSession = await PlannerManager.createSession(threadId!, userId, jobSpec);
+      await PlannerManager.updateSession(plannerSession.id, {
+        plan_spec: planSpec,
+        status: 'plan_ready'
+      });
+      
+      // ユーザーフレンドリーなプラン提示
+      const planSummary = formatUserFriendlyPlan(planSpec, jobSpec);
+      const streamlinedResponse = 
+        `承知いたしました。**「${message}」**を実行いたします。\n\n` +
+        `🎯 **実行プランの確認**\n\n` +
+        `以下の手順で作業を進めます：\n\n` +
+        `${planSummary}\n\n` +
+        `**この内容でよろしければ「承認」または「実行」とお答えください。**\n` +
+        `修正点があれば具体的にお聞かせください。`;
+      
+      console.log('✅ Streamlined workflow plan ready');
+      return formatSpecBuilderResponse(character, streamlinedResponse);
+    } catch (error) {
+      console.error('❌ Streamlined workflow failed:', error);
+      // フォールバック: 通常のSpec Builderフローに戻る
+      return await fallbackToTraditionalFlow(threadId!, userId, message, character);
+    }
   }
   
   return null; // Spec Builder処理ではない通常の応答を返す
@@ -900,4 +914,113 @@ function formatPlanSpecResponse(planSpec: any): string {
   response += '修正希望がある場合は具体的にお聞かせください。';
   
   return response;
+}
+
+// 新しいユーザーフレンドリーなプラン表示関数
+function formatUserFriendlyPlan(planSpec: any, jobSpec: any): string {
+  const nodeCount = planSpec.graph.nodes.length;
+  const estimatedTime = planSpec.graph.nodes.reduce((total: number, node: any) => {
+    return total + (node.estimates.latency_ms_p50 || 1000);
+  }, 0);
+
+  let response = '';
+  
+  // シンプルな実行ステップ表示
+  planSpec.graph.nodes.forEach((node: any, index: number) => {
+    const stepIcon = getStepIcon(node.tool_spec?.name);
+    response += `${stepIcon} **${index + 1}. ${node.title}**\n`;
+    response += `   ${node.purpose}\n\n`;
+  });
+  
+  response += `⏱️ **予想処理時間**: 約${Math.ceil(estimatedTime / 1000)}秒\n\n`;
+  
+  return response;
+}
+
+function getStepIcon(toolName?: string): string {
+  const iconMap: {[key: string]: string} = {
+    'search_web': '🔍',
+    'fetch_extract': '📄',
+    'normalize_dedupe': '🔧',
+    'structure_findings': '📊',
+    'synthesize_report': '📝',
+    'generate_seo': '✍️',
+    'analyze_data': '📈',
+    'create_leads': '👥',
+    'support_reply': '💬'
+  };
+  
+  return iconMap[toolName || ''] || '⚡';
+}
+
+// JobSpecを自動生成する関数
+async function generateJobSpecFromMessage(threadId: string, userId: string, message: string): Promise<any> {
+  // タスクタイプを推測
+  const taskType = inferTaskType(message);
+  
+  return {
+    id: `job_${Date.now()}`,
+    description: message,
+    task_type: taskType,
+    deliverable: {
+      type: 'report',
+      format: 'md',
+      schema_or_outline: ['概要', '詳細', '結論']
+    },
+    constraints: {
+      time_range: null,
+      languages: ['ja'],
+      domains_allow: [],
+      domains_block: [],
+      privacy_level: 'public-ok'
+    },
+    acceptance_criteria: [`「${message}」に関する包括的な情報をまとめること`],
+    user_id: userId,
+    thread_id: threadId,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+}
+
+// タスクタイプを推測する関数
+function inferTaskType(message: string): string {
+  const lowerMessage = message.toLowerCase();
+  
+  if (lowerMessage.includes('調べて') || lowerMessage.includes('リサーチ') || lowerMessage.includes('検索')) {
+    return 'research';
+  }
+  if (lowerMessage.includes('分析') || lowerMessage.includes('比較') || lowerMessage.includes('評価')) {
+    return 'analysis';
+  }
+  if (lowerMessage.includes('記事') || lowerMessage.includes('コンテンツ') || lowerMessage.includes('ブログ')) {
+    return 'seo_content';
+  }
+  if (lowerMessage.includes('サポート') || lowerMessage.includes('返信') || lowerMessage.includes('回答')) {
+    return 'customer_support';
+  }
+  if (lowerMessage.includes('リード') || lowerMessage.includes('営業') || lowerMessage.includes('見込み客')) {
+    return 'lead_generation';
+  }
+  
+  return 'research'; // デフォルト
+}
+
+// フォールバック用の従来フロー
+async function fallbackToTraditionalFlow(threadId: string, userId: string, message: string, character: any): Promise<{ content: string; images?: string[] }> {
+  // 新しいセッションを開始
+  const session = await SpecBuilderManager.createSession(threadId, userId, message);
+  
+  // 初期質問を生成
+  const questions = SpecBuilderManager.generateInitialQuestions(message);
+  
+  // セッションに質問を保存
+  await SpecBuilderManager.updateSession(session.id, {
+    questions,
+    status: 'gathering_requirements'
+  });
+  
+  return formatSpecBuilderResponse(character, 
+    `承知いたしました。**「${message}」**の要件を整理させていただきます。\n\n` +
+    formatSpecBuilderQuestions(questions)
+  );
 }
