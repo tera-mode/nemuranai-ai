@@ -272,6 +272,38 @@ export const ROUTING_PATTERNS = {
     'structure_findings',
     'synthesize_report'
   ],
+  seo_content: [
+    'search_web',       // 競合調査、キーワード調査
+    'fetch_extract',    // 既存コンテンツ分析
+    'structure_findings',
+    'generate_seo_content',
+    'optimize_seo'
+  ],
+  customer_support: [
+    'analyze_inquiry',   // 問い合わせ内容分析
+    'search_knowledge_base', // ナレッジベース検索
+    'generate_response', // 返信文生成
+    'validate_response'  // 返信文検証
+  ],
+  lead_generation: [
+    'search_prospects',  // 見込み客検索
+    'extract_company_info', // 企業情報抽出
+    'score_leads',      // リード評価
+    'generate_outreach', // アウトリーチ文作成
+    'format_lead_list'  // リスト整形
+  ],
+  data_processing: [
+    'validate_input',   // 入力データ検証
+    'transform_data',   // データ変換
+    'apply_rules',      // ビジネスルール適用
+    'format_output'     // 出力形式調整
+  ],
+  social_media: [
+    'analyze_audience', // オーディエンス分析
+    'generate_content', // コンテンツ生成
+    'optimize_engagement', // エンゲージメント最適化
+    'schedule_posts'    // 投稿スケジュール
+  ],
   visualization: [
     'py_analyze',
     'visualize',

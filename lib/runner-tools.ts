@@ -204,20 +204,91 @@ export class SearchWebTool extends RunnerTool {
   }
   
   private async performActualWebSearch(query: string, maxResults: number = 10): Promise<any[]> {
-    // TODO: 実際のGoogle Search API、Bing Search API、またはSerpAPIなどを実装
-    // 現在はダミー実装。実際のプロダクションでは適切なSearch APIを使用してください
-    
     try {
-      // 簡易的な検索結果シミュレーション
-      // 実際の実装では、Google Custom Search API等を使用
-      const searchResults = await this.simulateWebSearch(query, maxResults);
-      return searchResults;
+      // Claude APIを使って適切なURLを生成
+      console.log('🤖 Using Claude API to discover relevant URLs');
+      const urlResults = await this.discoverUrlsWithClaude(query, maxResults);
+      
+      if (urlResults && urlResults.length > 0) {
+        return urlResults;
+      }
+      
+      // フォールバック: 基本的なURLパターンを使用
+      const fallbackResults = await this.simulateWebSearch(query, maxResults);
+      return fallbackResults;
     } catch (error) {
-      console.error('Web search simulation failed:', error);
-      return [];
+      console.error('Claude URL discovery failed:', error);
+      
+      // フォールバック: 基本的なURLパターンを使用
+      const fallbackResults = await this.simulateWebSearch(query, maxResults);
+      return fallbackResults;
     }
   }
   
+  private async discoverUrlsWithClaude(query: string, maxResults: number): Promise<any[]> {
+    try {
+      const Anthropic = (await import('@anthropic-ai/sdk')).default;
+      const anthropic = new Anthropic({
+        apiKey: process.env.ANTHROPIC_API_KEY!,
+      });
+
+      const prompt = `
+あなたは情報収集の専門家です。以下のクエリに対して、信頼性の高い情報源のURLを${maxResults}個まで提案してください。
+
+クエリ: "${query}"
+
+要求事項:
+1. 日本語のサイトを優先してください
+2. 公式サイト、大手メディア、専門機関のURLを含めてください
+3. 実在する可能性の高いURLを提案してください
+4. 各URLについて信頼度スコア(0.0-1.0)を付けてください
+
+JSON形式で以下の形式で回答してください:
+{
+  "urls": [
+    {
+      "url": "https://example.com/page",
+      "title": "ページタイトル",
+      "site": "example.com",
+      "score": 0.9,
+      "snippet": "簡潔な説明"
+    }
+  ]
+}`;
+
+      const response = await anthropic.messages.create({
+        model: 'claude-3-haiku-20240307',
+        max_tokens: 2000,
+        temperature: 0.3,
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ]
+      });
+
+      const content = response.content[0]?.type === 'text' 
+        ? response.content[0].text 
+        : '';
+
+      // JSONを抽出してパース
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const data = JSON.parse(jsonMatch[0]);
+        if (data.urls && Array.isArray(data.urls)) {
+          console.log(`✅ Claude discovered ${data.urls.length} URLs`);
+          return data.urls.slice(0, maxResults);
+        }
+      }
+      
+      throw new Error('Invalid response format from Claude');
+    } catch (error) {
+      console.error('Claude URL discovery error:', error);
+      return [];
+    }
+  }
+
   private async simulateWebSearch(query: string, maxResults: number): Promise<any[]> {
     // 実際のSearch API実装までの暫定実装
     // Google Custom Search API、Bing Search API、またはSerpAPIの実装を推奨
@@ -822,30 +893,27 @@ ${content.substring(0, 10000)} ${content.length > 10000 ? '...[truncated]' : ''}
 
   private async analyzeContentWithClaude(prompt: string): Promise<any> {
     try {
-      // Claude API呼び出し（既存のClaude設定を使用）
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 4000,
-          temperature: 0.3
-        })
+      // Claude APIを直接呼び出し（サーバーサイドで実行）
+      const Anthropic = (await import('@anthropic-ai/sdk')).default;
+      const anthropic = new Anthropic({
+        apiKey: process.env.ANTHROPIC_API_KEY!,
       });
 
-      if (!response.ok) {
-        throw new Error(`Claude API error: ${response.status}`);
-      }
+      const response = await anthropic.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        temperature: 0.3,
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ]
+      });
 
-      const data = await response.text();
+      const data = response.content[0]?.type === 'text' 
+        ? response.content[0].text 
+        : 'No content available';
       
       // JSONレスポンスをパース
       const jsonMatch = data.match(/\{[\s\S]*\}/);

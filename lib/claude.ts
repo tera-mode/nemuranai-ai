@@ -894,9 +894,7 @@ function formatPlanSpecResponse(planSpec: any): string {
     });
   }
   
-  response += '\n### 📄 PlanSpec（JSON）\n```json\n';
-  response += JSON.stringify(planSpec, null, 2);
-  response += '\n```\n\n';
+  // 技術詳細は内部管理用として非表示
   
   response += '**この計画で実行を開始しますか？** 「実行開始」または「承認」とお答えください。\n';
   response += '修正希望がある場合は具体的にお聞かせください。';

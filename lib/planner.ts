@@ -144,10 +144,15 @@ export class PlannerManager {
     const patterns = {
       'research': ROUTING_PATTERNS.research,
       'analysis': ROUTING_PATTERNS.analysis,
-      'mixed': ROUTING_PATTERNS.mixed,
-      'generation': ROUTING_PATTERNS.research, // フォールバック
-      'visualization': ROUTING_PATTERNS.analysis
-    };
+      'generation': ROUTING_PATTERNS.generation,
+      'visualization': ROUTING_PATTERNS.visualization,
+      'customer_support': ROUTING_PATTERNS.customer_support,
+      'lead_generation': ROUTING_PATTERNS.lead_generation,
+      'seo_content': ROUTING_PATTERNS.seo_content,
+      'data_processing': ROUTING_PATTERNS.data_processing,
+      'social_media': ROUTING_PATTERNS.social_media,
+      'mixed': ROUTING_PATTERNS.mixed
+    } as const;
 
     return [...(patterns[taskType] || ROUTING_PATTERNS.mixed)];
   }

@@ -93,7 +93,7 @@ export function CharacterCarousel({ characters, onCharacterSelect, onCreateChara
   if (characters.length === 0) {
     // キャラクターがいない場合は作成ボタンのみ
     return (
-      <div className="bg-white/15 backdrop-blur-md rounded-2xl border border-white/20 overflow-hidden h-48 flex items-center justify-center">
+      <div className="bg-white/15 backdrop-blur-md rounded-2xl border border-white/20 overflow-hidden h-80 flex items-center justify-center">
         <button
           onClick={onCreateCharacter}
           className="flex flex-col items-center gap-3 p-8 hover:bg-white/10 rounded-xl transition-colors"
@@ -112,7 +112,7 @@ export function CharacterCarousel({ characters, onCharacterSelect, onCreateChara
       {/* カルーセル本体 */}
       <div 
         ref={carouselRef}
-        className="bg-white/15 backdrop-blur-md rounded-2xl border border-white/20 overflow-hidden h-72 relative cursor-grab active:cursor-grabbing"
+        className="bg-white/15 backdrop-blur-md rounded-2xl border border-white/20 overflow-hidden h-80 relative cursor-grab active:cursor-grabbing"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}

@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getUserCharacters } from '@/lib/character-actions';
-import { getRecentThreads } from '@/lib/thread-actions';
+import { getRecentThreads, getUserThreads } from '@/lib/thread-actions';
 import { refreshFirestore } from '@/lib/firebase';
 import { AICharacter, ChatThread } from '@/types/database';
 import { HamburgerMenu } from '@/components/HamburgerMenu';
@@ -31,15 +31,30 @@ function HomePageContent() {
       
       console.log('Home: Loading data for user:', userId);
       
-      const [userCharacters, threads] = await Promise.all([
+      const [userCharacters, recentThreadsForDisplay, allThreads] = await Promise.all([
         getUserCharacters(userId),
-        getRecentThreads(userId, 5)
+        getRecentThreads(userId, 5),
+        getUserThreads(userId) // 全スレッドを取得してキャラクター順序に使用
       ]);
       
-      console.log('Home: Loaded characters:', userCharacters.map(c => ({ id: c.id, name: c.name })));
+      // キャラクターを最新チャット順にソート
+      const sortedCharacters = userCharacters.map(character => {
+        // このキャラクターの全スレッドから最新のものを見つける
+        const characterThreads = allThreads.filter(thread => thread.characterId === character.id);
+        const latestThread = characterThreads.length > 0 
+          ? characterThreads.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())[0]
+          : null;
+        
+        return {
+          ...character,
+          lastChatTime: latestThread ? latestThread.updatedAt : character.createdAt
+        };
+      }).sort((a, b) => b.lastChatTime.getTime() - a.lastChatTime.getTime());
       
-      setCharacters(userCharacters);
-      setRecentThreads(threads);
+      console.log('Home: Loaded characters:', sortedCharacters.map(c => ({ id: c.id, name: c.name, lastChatTime: c.lastChatTime })));
+      
+      setCharacters(sortedCharacters);
+      setRecentThreads(recentThreadsForDisplay);
     } catch (error) {
       console.error('データ読み込みエラー:', error);
     } finally {

@@ -280,7 +280,7 @@ export async function generateThreadTitle(threadId: string): Promise<boolean> {
       messages: [
         {
           role: 'user',
-          content: `以下の会話内容から、適切なスレッドタイトルを生成してください。タイトルは10文字以下で、会話の主要なテーマを表すものにしてください。
+          content: `以下の会話内容から、適切なスレッドタイトルを生成してください。タイトルは15文字以下で、会話の主要なテーマを表すものにしてください。
 
 会話内容:
 ${conversationSample}
@@ -293,7 +293,7 @@ ${conversationSample}
     const title = response.content[0]?.type === 'text' 
       ? response.content[0].text.trim() 
       : '会話';
-    const finalTitle = title.substring(0, 10); // 10文字制限
+    const finalTitle = title.substring(0, 15); // 15文字制限
     console.log('✨ Generated title:', finalTitle);
     
     if (!finalTitle || finalTitle === '新しい会話') {

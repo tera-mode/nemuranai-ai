@@ -25,8 +25,18 @@ export interface FormModeOutput {
   assumptions_if_empty: string[];
 }
 
-// タスクタイプ定義
-export type TaskType = 'research' | 'analysis' | 'generation' | 'visualization' | 'mixed';
+// タスクタイプ定義 - 汎用的な構造に拡張
+export type TaskType = 
+  | 'research'           // ウェブスクレイピング、データ収集
+  | 'analysis'           // データ分析、比較調査
+  | 'generation'         // SEO記事、コンテンツ作成
+  | 'visualization'      // グラフ、チャート作成
+  | 'customer_support'   // カスタマーサポート返信文作成
+  | 'lead_generation'    // 営業リード作成
+  | 'seo_content'        // SEO最適化記事作成
+  | 'data_processing'    // データ処理、変換
+  | 'social_media'       // SNS投稿、マーケティング
+  | 'mixed';             // 複数タイプの組み合わせ
 
 // 成果物タイプ定義
 export type DeliverableType = 'report' | 'table' | 'image' | 'code' | 'slides';
