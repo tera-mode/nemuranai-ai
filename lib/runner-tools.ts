@@ -13,6 +13,8 @@ import {
   SynthesizeResult,
   ToolResult
 } from '@/lib/runner-types';
+import { getMaxSearchResults, getConfig, getPollingConfig } from '@/lib/system-config';
+import { SafeExecutor, safeApiCall, safeDataProcessing, extractResultWithDefault } from '@/lib/error-handler';
 
 // ツール実行基底クラス
 export abstract class RunnerTool {
@@ -29,33 +31,50 @@ export class SearchWebTool extends RunnerTool {
   name = 'search_web';
 
   async execute(params: SearchWebParams): Promise<ToolResult> {
-    try {
-      console.log(`🔍 Searching web for: "${params.query}"`);
-      
-      // 実際のウェブ検索を実行（Google Search API風の実装）
-      const searchResults = await this.performWebSearch(params.query, params.num || 10);
-      
-      const realResults: SearchResult = {
-        items: searchResults
-      };
+    const result = await SafeExecutor.execute(
+      'Web Search',
+      async () => {
+        console.log(`🔍 Searching web for: "${params.query}"`);
+        
+        // 実際のウェブ検索を実行（Google Search API風の実装）
+        const searchResults = await this.performWebSearch(params.query, params.num || 10);
+        
+        const realResults: SearchResult = {
+          items: searchResults
+        };
 
-      // ドメイン制限の適用
-      if (params.allow_domains && params.allow_domains.length > 0) {
-        realResults.items = realResults.items.filter(item => 
-          params.allow_domains!.some(domain => item.url.includes(domain))
-        );
+        // ドメイン制限の適用
+        if (params.allow_domains && params.allow_domains.length > 0) {
+          realResults.items = realResults.items.filter(item => 
+            params.allow_domains!.some(domain => item.url.includes(domain))
+          );
+        }
+
+        // 件数制限
+        realResults.items = realResults.items.slice(0, params.num);
+
+        console.log(`✅ Found ${realResults.items.length} search results`);
+        return realResults;
+      },
+      {
+        fallback: async () => {
+          // フォールバック：基本的な検索結果
+          return {
+            items: [{
+              url: `https://www.google.com/search?q=${encodeURIComponent(params.query)}`,
+              title: `${params.query} - 検索結果`,
+              site: 'google.com',
+              score: 0.5,
+              snippet: `"${params.query}" の検索結果`
+            }]
+          };
+        }
       }
-
-      // 件数制限
-      realResults.items = realResults.items.slice(0, params.num);
-
-      console.log(`✅ Found ${realResults.items.length} search results`);
-      return this.createResult(true, realResults);
-
-    } catch (error) {
-      console.error('❌ Search web error:', error);
-      return this.createResult(false, null, error instanceof Error ? error.message : 'Unknown search error');
-    }
+    );
+    
+    return result.success 
+      ? this.createResult(true, result.data)
+      : this.createResult(false, null, result.error);
   }
 
   private async performWebSearch(query: string, maxResults: number = 3): Promise<any[]> {

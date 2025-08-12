@@ -6,6 +6,7 @@ import { MarkdownRenderer } from '@/components/MarkdownRenderer';
 import { getThreadMessages } from '@/lib/thread-actions';
 import { detectDesignRequest } from '@/lib/design-detection';
 import { DesignJobFlow } from '@/components/DesignJobFlow';
+import { getPollingConfig } from '@/lib/system-config';
 
 interface ChatInterfaceProps {
   character: AICharacter;
@@ -94,8 +95,11 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
     
     if (isGeneratingMessage && !pollingIntervalRef.current && !designCompletedRef.current) {
       console.log('🎯 Starting task status polling for domain:', character.domain);
+      
+      // 設定駆動のポーリング設定を使用
+      const pollingConfig = getPollingConfig();
       let errorCount = 0;
-      const maxErrors = 3;
+      const maxErrors = pollingConfig.MAX_ERROR_COUNT;
       
       pollingIntervalRef.current = setInterval(async () => {
         try {
@@ -257,9 +261,9 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
         } catch (error) {
           console.error('Polling error:', error);
         }
-      }, 3000); // 3秒ごとにポーリング
+      }, pollingConfig.INTERVAL_MS); // 設定駆動のインターバル
       
-      // 2分後にタイムアウト
+      // 設定駆動のタイムアウト
       pollingTimeoutRef.current = setTimeout(() => {
         console.log('⏰ Polling timeout, stopping');
         if (pollingIntervalRef.current) {
@@ -267,7 +271,7 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
           pollingIntervalRef.current = null;
         }
         pollingTimeoutRef.current = null;
-      }, 120000);
+      }, pollingConfig.TIMEOUT_MS);
     } else if (!isGeneratingMessage && pollingIntervalRef.current) {
       // 生成メッセージがなくなったらポーリング停止
       console.log('🛑 No generating message, stopping poll');

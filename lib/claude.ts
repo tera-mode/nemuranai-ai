@@ -9,124 +9,21 @@ import { DEFAULT_SKILL_REGISTRY } from '@/lib/plan-spec-types';
 import { RunnerEngine } from '@/lib/runner-engine';
 import { RunRequest, DEFAULT_RUNNER_ENVIRONMENT } from '@/lib/runner-types';
 
-// AIによるレポート整理関数
+// 統一システムのインポート
+import { processAnyContent } from '@/lib/content-processor';
+import { safeDataProcessing, extractResultWithDefault } from '@/lib/error-handler';
+import { shouldForceAIProcessing } from '@/lib/system-config';
+
+// AIによるレポート整理関数（統一システム使用）
 async function organizeReportWithAI(artifactContent: any): Promise<string> {
-  try {
-    console.log('🤖 Starting AI report organization...');
-    
-    // コンテンツの形式を判定
-    let inputContent = '';
-    
-    if (typeof artifactContent === 'string') {
-      inputContent = artifactContent;
-    } else if (artifactContent.report_md) {
-      // エスケープされたMarkdownを正常化
-      inputContent = unescapeJsonString(artifactContent.report_md);
-    } else if (artifactContent.findings) {
-      // Findingsデータを構造化
-      inputContent = `調査で発見された${artifactContent.findings.length}件の要点:\n\n`;
-      artifactContent.findings.forEach((finding: any, index: number) => {
-        inputContent += `${index + 1}. ${finding.claim}\n`;
-        if (finding.support && finding.support[0]) {
-          inputContent += `   出典: ${finding.support[0].title} (${finding.support[0].url})\n`;
-          if (finding.support[0].snippet) {
-            inputContent += `   概要: ${finding.support[0].snippet.substring(0, 200)}...\n`;
-          }
-        }
-        if (finding.confidence) {
-          inputContent += `   信頼度: ${Math.round(finding.confidence * 100)}%\n`;
-        }
-        inputContent += '\n';
-      });
-    } else {
-      // JSONデータを文字列に変換
-      inputContent = `調査結果データ:\n${JSON.stringify(artifactContent, null, 2)}`;
-    }
+  // 統一コンテンツ処理システムを使用
+  const result = await safeDataProcessing(
+    'AI Report Organization',
+    () => processAnyContent(artifactContent, 'business_report'),
+    () => Promise.resolve(createFallbackMarkdownReport(JSON.stringify(artifactContent, null, 2)))
+  );
 
-    // Claude APIでレポートを再整理
-    const anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY!,
-    });
-
-    const reorganizePrompt = `あなたはレポート生成AIです。以後、**出力は2部構成**にしてください。
-
-**第1部：ユーザー向け（Markdown）**
-
-* ここは**コードブロックで囲まない**。引用符も付けない。
-* 普通のMarkdownとして**そのまま表示**できること。
-* 見出し、箇条書き、表などの装飾を使用可。
-* 技術的な詳細は省略し、ビジネス価値のある情報に焦点を当てる
-* 重要なポイントは太字で強調する
-* 日本語として自然な文章にする
-
-**区切り**
-
-* 1行だけ \`---\` を出力する。
-
-**第2部：機械可読（JSON）**
-
-* ここは **\`\`\`json** フェンスで囲む。
-* スキーマは以下のキーを必須：
-  * \`report_date\` (YYYY-MM-DD)
-  * \`item_count\` (number)
-  * \`executive_summary\` (string)
-  * \`key_findings\` (array of strings)
-* 第1部と**同じ内容**を表現する。Markdown文字列を入れない。
-* 数値は数値型で、改行は入れない。
-
-**禁止事項**
-
-* Markdown部をコードブロックやJSON文字列で包むこと
-* \`\\n\` で改行をエスケープすること
-* 2部を逆順に出すこと
-
-**調査データ**：
-${inputContent.substring(0, 4000)}
-
-上記のデータを、経営陣でも理解しやすいビジネスレポートとして2部構成で整理してください。`;
-
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2000,
-      temperature: 0.3,
-      messages: [{ role: 'user', content: reorganizePrompt }],
-    });
-
-    const responseText = message.content[0];
-    if (responseText?.type === 'text') {
-      console.log('✅ AI report organization completed');
-      
-      // 2部構成の出力から第1部（Markdown部分）のみを抽出
-      const fullText = responseText.text;
-      const parts = fullText.split('---');
-      
-      if (parts.length >= 2) {
-        // 第1部（Markdown部分）を取得
-        const markdownPart = parts[0].trim();
-        console.log('📄 Extracted Markdown part from 2-part response');
-        return markdownPart;
-      } else {
-        // 区切りがない場合はそのまま返す（フォールバック）
-        console.log('⚠️ No separator found, returning full response');
-        return fullText;
-      }
-    }
-
-    // AIが失敗した場合のフォールバック
-    console.log('⚠️ AI organization failed, using fallback');
-    return createFallbackMarkdownReport(inputContent);
-
-  } catch (error) {
-    console.error('❌ AI report organization error:', error);
-    // エラー時は整理されたMarkdownとして返す
-    if (typeof artifactContent === 'string') {
-      return createFallbackMarkdownReport(artifactContent);
-    } else if (artifactContent.report_md) {
-      return unescapeJsonString(artifactContent.report_md).substring(0, 2000);
-    } else {
-      return createFallbackMarkdownReport(JSON.stringify(artifactContent, null, 2));
-    }
-  }
+  return extractResultWithDefault(result, createFallbackMarkdownReport('処理に失敗しました'));
 }
 
 // JSONエスケープ文字列を正常化する共通関数
