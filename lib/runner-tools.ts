@@ -246,7 +246,12 @@ export class SearchWebTool extends RunnerTool {
   
   private async searchWithGoogleAPI(query: string, maxResults: number): Promise<any[]> {
     try {
-      const GOOGLE_API_KEY = 'AIzaSyB4oeTOI4RgvOHUFnUnBsYHPEpuMjdKPFM';
+      const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
+      
+      if (!GOOGLE_API_KEY) {
+        console.warn('⚠️ GOOGLE_API_KEY not configured, skipping Google Search API');
+        return [];
+      }
       
       // Google Custom Search Engine ID の設定手順:
       // 1. https://programmablesearchengine.google.com/ にアクセス
@@ -389,7 +394,12 @@ export class SearchWebTool extends RunnerTool {
 
   private async searchWithGoogleAPIFallback(query: string, maxResults: number): Promise<any[]> {
     try {
-      const GOOGLE_API_KEY = 'AIzaSyB4oeTOI4RgvOHUFnUnBsYHPEpuMjdKPFM';
+      const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
+      
+      if (!GOOGLE_API_KEY) {
+        console.warn('⚠️ GOOGLE_API_KEY not configured for fallback, returning empty results');
+        return [];
+      }
       
       // Programmable Search Engineの汎用ID（ウェブ全体を検索）
       // より広範囲な検索のためのフォールバック設定
