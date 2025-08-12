@@ -67,7 +67,8 @@ const domainOutfits: Record<BusinessDomain, string> = {
   'fortune-teller': 'mystical robes, tarot cards, crystal ball, magical accessories, fortune telling setup',
   trainer: 'athletic wear, fitness equipment, energetic pose, motivational expression, gym environment',
   'health-enthusiast': 'active lifestyle clothing, health supplements, yoga mat, wellness accessories, healthy living vibe',
-  'legal-expert': 'formal business attire, law books, legal documents, confident professional pose, office setting'
+  'legal-expert': 'formal business attire, law books, legal documents, confident professional pose, office setting',
+  analyst: 'business casual attire, multiple monitors, AI orchestration diagrams, workflow charts, strategic analysis pose, tech-forward workspace'
 };
 
 // 背景・環境・ストーリー要素を生成

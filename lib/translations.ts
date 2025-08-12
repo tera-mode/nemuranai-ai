@@ -75,7 +75,8 @@ export const getDomainLabel = (domain: BusinessDomain): string => {
     'fortune-teller': '占い師',
     trainer: 'トレーナー',
     'health-enthusiast': '健康オタク',
-    'legal-expert': '法律オタク'
+    'legal-expert': '法律オタク',
+    analyst: 'AI社員オーケストレーター'
   };
   return domainLabels[domain] || domain;
 };

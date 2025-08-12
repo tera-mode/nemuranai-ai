@@ -19,7 +19,8 @@ export type PersonalityType =
 export type BusinessDomain = 
   | 'sales' | 'marketing' | 'support' | 'analysis' 
   | 'secretary' | 'strategy' | 'designer' | 'writer'
-  | 'fortune-teller' | 'trainer' | 'health-enthusiast' | 'legal-expert';
+  | 'fortune-teller' | 'trainer' | 'health-enthusiast' | 'legal-expert'
+  | 'analyst';
 
 // ユーザープロファイル
 export interface UserProfile {

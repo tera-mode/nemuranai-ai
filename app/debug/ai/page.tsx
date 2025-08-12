@@ -41,36 +41,50 @@ export default function AIDebugPage() {
     const startTime = Date.now();
     
     try {
+      const requestBody = {
+        prompt: imagePrompt,
+        userId: session.user.id || session.user.email,
+        characterId: 'debug-test'
+      };
+
       const response = await fetch('/api/generate-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          prompt: imagePrompt,
-          userId: session.user.id || session.user.email,
-          characterId: 'debug-test'
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const endTime = Date.now();
       const data = await response.json();
 
-      if (data.success) {
-        setGeneratedImage(data.imageUrl);
+      if (data.success || response.ok) {
+        setGeneratedImage(data.imageUrl || '');
         setResult({
           success: true,
           data: {
+            httpStatus: response.status,
+            httpStatusText: response.statusText,
+            request: requestBody,
+            response: data,
             imageUrl: data.imageUrl,
             isFirebase: data.isFirebase,
-            isTemp: data.isTemp
+            isTemp: data.isTemp,
+            fullResponseData: data
           },
           responseTime: endTime - startTime
         });
       } else {
         setResult({
           success: false,
-          error: data.error,
+          error: data.error || `HTTP ${response.status}: ${response.statusText}`,
+          data: {
+            httpStatus: response.status,
+            httpStatusText: response.statusText,
+            request: requestBody,
+            response: data,
+            fullResponseData: data
+          },
           responseTime: endTime - startTime
         });
       }
@@ -78,6 +92,10 @@ export default function AIDebugPage() {
       setResult({
         success: false,
         error: error.message,
+        data: {
+          request: requestBody || {},
+          errorDetails: error
+        },
         responseTime: Date.now() - startTime
       });
     } finally {
@@ -93,35 +111,49 @@ export default function AIDebugPage() {
     const startTime = Date.now();
     
     try {
+      const requestBody = {
+        message: chatMessage,
+        characterId: 'debug-test',
+        threadId: 'debug-thread'
+      };
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          message: chatMessage,
-          characterId: 'debug-test',
-          threadId: 'debug-thread'
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const endTime = Date.now();
       const data = await response.json();
 
-      if (data.success) {
-        setChatResponse(data.response);
+      if (data.success || response.ok) {
+        setChatResponse(data.response || data.message || 'レスポンスが空です');
         setResult({
           success: true,
           data: {
-            response: data.response,
-            model: data.model
+            httpStatus: response.status,
+            httpStatusText: response.statusText,
+            request: requestBody,
+            response: data,
+            aiResponse: data.response || data.message,
+            model: data.model,
+            fullResponseData: data
           },
           responseTime: endTime - startTime
         });
       } else {
         setResult({
           success: false,
-          error: data.error,
+          error: data.error || `HTTP ${response.status}: ${response.statusText}`,
+          data: {
+            httpStatus: response.status,
+            httpStatusText: response.statusText,
+            request: requestBody,
+            response: data,
+            fullResponseData: data
+          },
           responseTime: endTime - startTime
         });
       }
@@ -129,6 +161,14 @@ export default function AIDebugPage() {
       setResult({
         success: false,
         error: error.message,
+        data: {
+          request: {
+            message: chatMessage,
+            characterId: 'debug-test',
+            threadId: 'debug-thread'
+          },
+          errorDetails: error
+        },
         responseTime: Date.now() - startTime
       });
     } finally {
@@ -144,34 +184,48 @@ export default function AIDebugPage() {
     const startTime = Date.now();
     
     try {
+      const requestBody = {
+        text: translateText,
+        targetLanguage: 'ja'
+      };
+
       const response = await fetch('/api/translate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          text: translateText,
-          targetLanguage: 'ja'
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const endTime = Date.now();
       const data = await response.json();
 
-      if (data.success) {
-        setTranslatedText(data.translatedText);
+      if (data.success || response.ok) {
+        setTranslatedText(data.translatedText || '');
         setResult({
           success: true,
           data: {
+            httpStatus: response.status,
+            httpStatusText: response.statusText,
+            request: requestBody,
+            response: data,
             originalText: translateText,
-            translatedText: data.translatedText
+            translatedText: data.translatedText,
+            fullResponseData: data
           },
           responseTime: endTime - startTime
         });
       } else {
         setResult({
           success: false,
-          error: data.error,
+          error: data.error || `HTTP ${response.status}: ${response.statusText}`,
+          data: {
+            httpStatus: response.status,
+            httpStatusText: response.statusText,
+            request: requestBody,
+            response: data,
+            fullResponseData: data
+          },
           responseTime: endTime - startTime
         });
       }
@@ -179,6 +233,10 @@ export default function AIDebugPage() {
       setResult({
         success: false,
         error: error.message,
+        data: {
+          request: requestBody || {},
+          errorDetails: error
+        },
         responseTime: Date.now() - startTime
       });
     } finally {
@@ -357,6 +415,15 @@ export default function AIDebugPage() {
                       <span className={`font-bold ${result.success ? 'text-green-300' : 'text-red-300'}`}>
                         {result.success ? 'テスト成功' : 'テスト失敗'}
                       </span>
+                      {result.data?.httpStatus && (
+                        <span className={`px-2 py-1 rounded text-xs font-mono ${
+                          result.data.httpStatus >= 200 && result.data.httpStatus < 300 
+                            ? 'bg-green-500/20 text-green-300' 
+                            : 'bg-red-500/20 text-red-300'
+                        }`}>
+                          HTTP {result.data.httpStatus}
+                        </span>
+                      )}
                       {result.responseTime && (
                         <span className="text-white/60 text-sm ml-auto">
                           {result.responseTime}ms
@@ -366,6 +433,11 @@ export default function AIDebugPage() {
                     {result.error && (
                       <p className="text-red-200 text-sm">{result.error}</p>
                     )}
+                    {result.data?.httpStatusText && (
+                      <p className="text-white/60 text-xs mt-1">
+                        Status: {result.data.httpStatusText}
+                      </p>
+                    )}
                   </div>
 
                   {/* 結果表示 */}
@@ -373,39 +445,87 @@ export default function AIDebugPage() {
                     <div className="space-y-4">
                       {/* 画像結果 */}
                       {activeTab === 'image' && generatedImage && (
-                        <div>
-                          <p className="text-white/80 text-sm mb-2">生成された画像:</p>
-                          <img
-                            src={generatedImage}
-                            alt="Generated"
-                            className="w-full max-w-sm rounded-xl"
-                          />
-                          <div className="mt-2 text-xs text-white/60">
-                            <p>保存先: {result.data?.isFirebase ? 'Firebase Storage' : '一時ストレージ'}</p>
-                            <p>URL: {generatedImage}</p>
+                        <div className="space-y-4">
+                          <div>
+                            <p className="text-white/80 text-sm mb-2">生成された画像:</p>
+                            <img
+                              src={generatedImage}
+                              alt="Generated"
+                              className="w-full max-w-sm rounded-xl"
+                            />
+                            <div className="mt-2 text-xs text-white/60">
+                              <p>保存先: {result.data?.isFirebase ? 'Firebase Storage' : '一時ストレージ'}</p>
+                              <p>URL: {generatedImage}</p>
+                            </div>
+                          </div>
+                          
+                          {/* 詳細レスポンス情報 */}
+                          <div>
+                            <p className="text-white/80 text-sm mb-2">詳細レスポンス情報:</p>
+                            <div className="bg-black/20 rounded-xl p-4 border border-white/20">
+                              <pre className="text-xs text-green-300 overflow-x-auto whitespace-pre-wrap">
+                                {JSON.stringify(result.data, null, 2)}
+                              </pre>
+                            </div>
                           </div>
                         </div>
                       )}
 
                       {/* チャット結果 */}
                       {activeTab === 'chat' && chatResponse && (
-                        <div>
-                          <p className="text-white/80 text-sm mb-2">AI応答:</p>
-                          <div className="bg-white/10 rounded-xl p-4 border border-white/20">
-                            <p className="text-white leading-relaxed">{chatResponse}</p>
+                        <div className="space-y-4">
+                          <div>
+                            <p className="text-white/80 text-sm mb-2">AI応答:</p>
+                            <div className="bg-white/10 rounded-xl p-4 border border-white/20">
+                              <p className="text-white leading-relaxed whitespace-pre-wrap">{chatResponse}</p>
+                            </div>
+                          </div>
+                          
+                          {/* 詳細レスポンス情報 */}
+                          <div>
+                            <p className="text-white/80 text-sm mb-2">詳細レスポンス情報:</p>
+                            <div className="bg-black/20 rounded-xl p-4 border border-white/20">
+                              <pre className="text-xs text-green-300 overflow-x-auto whitespace-pre-wrap">
+                                {JSON.stringify(result.data, null, 2)}
+                              </pre>
+                            </div>
                           </div>
                         </div>
                       )}
 
                       {/* 翻訳結果 */}
                       {activeTab === 'translate' && translatedText && (
-                        <div>
-                          <p className="text-white/80 text-sm mb-2">翻訳結果:</p>
-                          <div className="bg-white/10 rounded-xl p-4 border border-white/20">
-                            <p className="text-white leading-relaxed">{translatedText}</p>
+                        <div className="space-y-4">
+                          <div>
+                            <p className="text-white/80 text-sm mb-2">翻訳結果:</p>
+                            <div className="bg-white/10 rounded-xl p-4 border border-white/20">
+                              <p className="text-white leading-relaxed">{translatedText}</p>
+                            </div>
+                          </div>
+                          
+                          {/* 詳細レスポンス情報 */}
+                          <div>
+                            <p className="text-white/80 text-sm mb-2">詳細レスポンス情報:</p>
+                            <div className="bg-black/20 rounded-xl p-4 border border-white/20">
+                              <pre className="text-xs text-green-300 overflow-x-auto whitespace-pre-wrap">
+                                {JSON.stringify(result.data, null, 2)}
+                              </pre>
+                            </div>
                           </div>
                         </div>
                       )}
+                    </div>
+                  )}
+                  
+                  {/* デバッグ情報（成功・失敗問わず表示） */}
+                  {result.data && (
+                    <div>
+                      <p className="text-white/80 text-sm mb-2">🔧 デバッグ情報:</p>
+                      <div className="bg-black/30 rounded-xl p-4 border border-white/20">
+                        <pre className="text-xs text-cyan-300 overflow-x-auto whitespace-pre-wrap max-h-96 overflow-y-auto">
+                          {JSON.stringify(result.data, null, 2)}
+                        </pre>
+                      </div>
                     </div>
                   )}
                 </div>

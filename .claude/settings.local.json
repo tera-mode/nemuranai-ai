@@ -29,7 +29,8 @@
       "Bash(npm cache clean:*)",
       "Bash(yarn install)",
       "Bash(git log:*)",
-      "WebFetch(domain:vercel.com)"
+      "WebFetch(domain:vercel.com)",
+      "Bash(npx tsc:*)"
     ],
     "deny": []
   }

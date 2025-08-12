@@ -186,7 +186,12 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
   }, []);
 
   const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+    console.log('🎯 sendMessage called with input:', input.trim());
+    
+    if (!input.trim() || isLoading) {
+      console.log('⚠️ Skipping send: empty input or loading state');
+      return;
+    }
 
     const messageText = input.trim();
     
@@ -220,6 +225,12 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
     setMessages(prev => [...prev, tempUserMessage]);
 
     try {
+      console.log('🚀 Sending message to API:', {
+        message: messageText,
+        characterId: character.id,
+        threadId: thread?.id,
+      });
+      
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -232,19 +243,39 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
         }),
       });
 
+      console.log('📡 API response status:', response.status, response.ok);
+      
       const data = await response.json();
+      console.log('📋 API response data:', JSON.stringify(data, null, 2));
 
       if (data.success) {
+        console.log('✅ API call successful, processing response...');
+        
         // スレッドが新しく作成された場合、スレッド情報を更新
         if (data.threadId && !thread) {
+          console.log('🆕 New thread created:', data.threadId);
           // 新しいスレッド情報を取得して親コンポーネントに通知
           // これにより ThreadList が更新される
         }
 
         // メッセージを再読み込み（サーバーから正確なデータを取得）
         if (data.threadId) {
+          console.log('🔄 Reloading messages for thread:', data.threadId);
           const updatedMessages = await getThreadMessages(data.threadId);
+          console.log('📨 Retrieved messages:', updatedMessages.length, 'messages');
+          console.log('📝 Message contents:', updatedMessages.map(m => ({ 
+            id: m.id, 
+            type: m.type, 
+            content: m.content.substring(0, 50) + '...', 
+            timestamp: m.timestamp 
+          })));
+          
           setMessages(updatedMessages);
+          console.log('✅ Messages updated in state');
+          console.log('🔄 Forcing re-render trigger...');
+          
+          // Reactの再レンダリングを強制するために新しい配列参照を作成
+          setMessages([...updatedMessages]);
           
           // スレッドリストを更新するためにコールバックを実行
           if (onMessageSent) {
@@ -260,12 +291,17 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
               }, 2000);
             }
           }
+        } else {
+          console.warn('⚠️ No threadId in response');
         }
       } else {
+        console.error('❌ API call failed:', data);
         throw new Error(data.error || 'Unknown error');
       }
+      
+      console.log('🎉 sendMessage completed successfully');
     } catch (error) {
-      console.error('Chat error:', error);
+      console.error('💥 Chat error occurred:', error);
       // エラーメッセージを追加
       const errorMessage: ChatMessage = {
         id: `error-${Date.now()}`,
@@ -279,6 +315,7 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
+      console.log('🏁 sendMessage finally block - setting isLoading to false');
       setIsLoading(false);
     }
   };
@@ -370,7 +407,9 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
           </div>
         )}
 
-        {messages.map((message) => (
+        {messages.map((message) => {
+          console.log('🖼️ Rendering message:', message.id, message.type, message.content.substring(0, 30) + '...');
+          return (
           <div
             key={message.id}
             className={`flex items-start gap-3 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -437,7 +476,8 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
         
         {isLoading && (
           <div className="flex items-start gap-3 justify-start">
