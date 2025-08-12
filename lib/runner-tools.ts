@@ -58,7 +58,7 @@ export class SearchWebTool extends RunnerTool {
     }
   }
 
-  private async performWebSearch(query: string, maxResults: number = 10): Promise<any[]> {
+  private async performWebSearch(query: string, maxResults: number = 3): Promise<any[]> {
     try {
       // 実際のウェブ検索（汎用的なアプローチ）
       console.log(`🌐 Performing web search for: "${query}"`);
@@ -203,21 +203,21 @@ export class SearchWebTool extends RunnerTool {
     }));
   }
   
-  private async performActualWebSearch(query: string, maxResults: number = 10): Promise<any[]> {
+  private async performActualWebSearch(query: string, maxResults: number = 3): Promise<any[]> {
     try {
-      // Claude APIを使って適切なURLを生成
-      console.log('🤖 Using Claude API to discover relevant URLs');
-      const urlResults = await this.discoverUrlsWithClaude(query, maxResults);
+      // Google Custom Search APIを使用
+      console.log('🔍 Using Google Custom Search API for real web search');
+      const googleResults = await this.searchWithGoogleAPI(query, maxResults);
       
-      if (urlResults && urlResults.length > 0) {
-        return urlResults;
+      if (googleResults && googleResults.length > 0) {
+        return googleResults;
       }
       
       // フォールバック: 基本的なURLパターンを使用
       const fallbackResults = await this.simulateWebSearch(query, maxResults);
       return fallbackResults;
     } catch (error) {
-      console.error('Claude URL discovery failed:', error);
+      console.error('Google Search API failed:', error);
       
       // フォールバック: 基本的なURLパターンを使用
       const fallbackResults = await this.simulateWebSearch(query, maxResults);
@@ -225,66 +225,193 @@ export class SearchWebTool extends RunnerTool {
     }
   }
   
-  private async discoverUrlsWithClaude(query: string, maxResults: number): Promise<any[]> {
+  private async searchWithGoogleAPI(query: string, maxResults: number): Promise<any[]> {
     try {
-      const Anthropic = (await import('@anthropic-ai/sdk')).default;
-      const anthropic = new Anthropic({
-        apiKey: process.env.ANTHROPIC_API_KEY!,
-      });
-
-      const prompt = `
-あなたは情報収集の専門家です。以下のクエリに対して、信頼性の高い情報源のURLを${maxResults}個まで提案してください。
-
-クエリ: "${query}"
-
-要求事項:
-1. 日本語のサイトを優先してください
-2. 公式サイト、大手メディア、専門機関のURLを含めてください
-3. 実在する可能性の高いURLを提案してください
-4. 各URLについて信頼度スコア(0.0-1.0)を付けてください
-
-JSON形式で以下の形式で回答してください:
-{
-  "urls": [
-    {
-      "url": "https://example.com/page",
-      "title": "ページタイトル",
-      "site": "example.com",
-      "score": 0.9,
-      "snippet": "簡潔な説明"
-    }
-  ]
-}`;
-
-      const response = await anthropic.messages.create({
-        model: 'claude-3-haiku-20240307',
-        max_tokens: 2000,
-        temperature: 0.3,
-        messages: [
-          {
-            role: 'user',
-            content: prompt
+      const GOOGLE_API_KEY = 'AIzaSyB4oeTOI4RgvOHUFnUnBsYHPEpuMjdKPFM';
+      
+      // Google Custom Search Engine ID の設定手順:
+      // 1. https://programmablesearchengine.google.com/ にアクセス
+      // 2. "新しい検索エンジンを作成" をクリック
+      // 3. "検索するサイト" に "*" を入力（ウェブ全体を検索）
+      // 4. 作成後、設定 > 基本 > 検索エンジンID をコピー
+      // 5. 環境変数 GOOGLE_SEARCH_ENGINE_ID に設定するか、下記を更新
+      // 
+      // 注意: Google Custom Search APIは1日100クエリまで無料
+      // API上限対策として1回の実行で最大3件の結果に制限
+      
+      let SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID;
+      
+      // 環境変数が未設定の場合、複数のIDを試行
+      if (!SEARCH_ENGINE_ID) {
+        console.log('⚠️ GOOGLE_SEARCH_ENGINE_ID not set, trying multiple fallback IDs...');
+        const fallbackIds = [
+          'a61da1bf5120046a6', // 実際に作成されたGoogle Custom Search Engine ID
+          '017576662512468239146:omuauf_lfve', // 既存のテスト用ID（フォールバック）
+          // 追加のフォールバックID（必要に応じて）
+        ];
+        
+        // 複数のIDで順次試行
+        for (const testId of fallbackIds) {
+          try {
+            console.log(`🧪 Testing search engine ID: ${testId}`);
+            const testResult = await this.testSearchEngineId(query, testId, GOOGLE_API_KEY);
+            if (testResult.length > 0) {
+              SEARCH_ENGINE_ID = testId;
+              console.log(`✅ Working search engine ID found: ${testId}`);
+              break;
+            }
+          } catch (testError) {
+            console.log(`❌ Search engine ID ${testId} failed: ${testError}`);
+            continue;
           }
-        ]
-      });
-
-      const content = response.content[0]?.type === 'text' 
-        ? response.content[0].text 
-        : '';
-
-      // JSONを抽出してパース
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const data = JSON.parse(jsonMatch[0]);
-        if (data.urls && Array.isArray(data.urls)) {
-          console.log(`✅ Claude discovered ${data.urls.length} URLs`);
-          return data.urls.slice(0, maxResults);
+        }
+        
+        if (!SEARCH_ENGINE_ID) {
+          throw new Error('No working Google Custom Search Engine ID found. Please create one at https://programmablesearchengine.google.com/');
         }
       }
       
-      throw new Error('Invalid response format from Claude');
+      // Google Custom Search APIのURL
+      const apiUrl = 'https://www.googleapis.com/customsearch/v1';
+      const params = new URLSearchParams({
+        key: GOOGLE_API_KEY,
+        cx: SEARCH_ENGINE_ID,
+        q: query,
+        num: Math.min(maxResults, 3).toString(), // API上限対策：最大3件に制限
+        hl: 'ja', // 日本語優先
+        lr: 'lang_ja', // 日本語ページ優先
+        safe: 'off'
+      });
+
+      console.log(`🌐 Calling Google Custom Search API: ${query} (limited to 3 results)`);
+      const response = await fetch(`${apiUrl}?${params}`, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error(`Google API error details:`, errorData);
+        
+        if (response.status === 400) {
+          throw new Error(`Google API 400 Error - Invalid search engine ID or API key. Details: ${errorData}`);
+        } else if (response.status === 403) {
+          throw new Error(`Google API 403 Error - API quota exceeded or unauthorized. Details: ${errorData}`);
+        } else {
+          throw new Error(`Google API error: ${response.status} ${response.statusText}. Details: ${errorData}`);
+        }
+      }
+
+      const data = await response.json();
+      
+      // APIレスポンスをログ出力（デバッグ用）
+      console.log(`📊 Google API response:`, {
+        totalResults: data.searchInformation?.totalResults,
+        searchTime: data.searchInformation?.searchTime,
+        itemsCount: data.items?.length || 0
+      });
+      
+      if (!data.items || data.items.length === 0) {
+        console.log('⚠️ No search results from Google API');
+        return [];
+      }
+
+      // Google検索結果を標準形式に変換
+      const results = data.items.map((item: any, index: number) => ({
+        url: item.link,
+        title: item.title,
+        site: new URL(item.link).hostname,
+        score: 0.9 - (index * 0.05), // 順位に基づくスコア
+        snippet: item.snippet || item.htmlSnippet?.replace(/<[^>]*>/g, '') || ''
+      }));
+
+      console.log(`✅ Google API returned ${results.length} search results`);
+      return results;
+
     } catch (error) {
-      console.error('Claude URL discovery error:', error);
+      console.error('Google Custom Search API error:', error);
+      
+      // フォールバック: より一般的な検索エンジンIDで再試行
+      try {
+        return await this.searchWithGoogleAPIFallback(query, maxResults);
+      } catch (fallbackError) {
+        console.error('Google API fallback also failed:', fallbackError);
+        return [];
+      }
+    }
+  }
+
+  // 検索エンジンIDをテストするヘルパー関数
+  private async testSearchEngineId(query: string, searchEngineId: string, apiKey: string): Promise<any[]> {
+    const apiUrl = 'https://www.googleapis.com/customsearch/v1';
+    const params = new URLSearchParams({
+      key: apiKey,
+      cx: searchEngineId,
+      q: 'test', // シンプルなテストクエリ
+      num: '1' // 1件だけ取得してテスト
+    });
+
+    const response = await fetch(`${apiUrl}?${params}`, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Test failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.items || [];
+  }
+
+  private async searchWithGoogleAPIFallback(query: string, maxResults: number): Promise<any[]> {
+    try {
+      const GOOGLE_API_KEY = 'AIzaSyB4oeTOI4RgvOHUFnUnBsYHPEpuMjdKPFM';
+      
+      // Programmable Search Engineの汎用ID（ウェブ全体を検索）
+      // より広範囲な検索のためのフォールバック設定
+      const FALLBACK_SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID || 'a61da1bf5120046a6';
+      
+      const apiUrl = 'https://www.googleapis.com/customsearch/v1';
+      const params = new URLSearchParams({
+        key: GOOGLE_API_KEY,
+        cx: FALLBACK_SEARCH_ENGINE_ID,
+        q: query,
+        num: Math.min(maxResults, 3).toString(), // API上限対策：最大3件に制限
+        hl: 'ja',
+        safe: 'off'
+      });
+
+      console.log(`🔄 Trying Google API fallback for: ${query} (limited to 3 results)`);
+      const response = await fetch(`${apiUrl}?${params}`);
+
+      if (!response.ok) {
+        throw new Error(`Fallback Google API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.items) {
+        return [];
+      }
+
+      const results = data.items.map((item: any, index: number) => ({
+        url: item.link,
+        title: item.title,
+        site: new URL(item.link).hostname,
+        score: 0.8 - (index * 0.05),
+        snippet: item.snippet || ''
+      }));
+
+      console.log(`✅ Google API fallback returned ${results.length} results`);
+      return results;
+
+    } catch (error) {
+      console.error('Google API fallback failed:', error);
       return [];
     }
   }
@@ -369,22 +496,59 @@ export class FetchExtractTool extends RunnerTool {
 
   private async scrapeWebContent(url: string): Promise<any> {
     try {
-      // Node.jsのfetchを使用して実際にWebコンテンツを取得
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Connection': 'keep-alive',
-          'Upgrade-Insecure-Requests': '1',
-        },
-        signal: AbortSignal.timeout(15000), // 15秒タイムアウトに短縮
-        // SSL証明書エラーを回避
-        //@ts-ignore
-        rejectUnauthorized: false
-      });
+      // 事前にURL存在チェック（HEAD リクエスト）
+      const isValidUrl = await this.checkUrlExists(url);
+      if (!isValidUrl) {
+        console.log(`🚫 URL validation failed for: ${url}`);
+        // 404の場合は代替検索を試行
+        const alternativeUrl = await this.findAlternativeUrl(url);
+        if (alternativeUrl) {
+          console.log(`🔄 Found alternative URL: ${alternativeUrl}`);
+          url = alternativeUrl;
+        } else {
+          throw new Error('URL not found and no alternative available');
+        }
+      }
+
+      // より多様なUser-Agentプール（2024年最新版）
+      const userAgents = [
+        // Chrome 最新版
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        // Edge
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edg/121.0.2277.128',
+        // Firefox 最新版
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:123.0) Gecko/20100101 Firefox/123.0',
+        // Safari
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15',
+        // モバイル版 
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (Linux; Android 13; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36'
+      ];
+      const randomUA = userAgents[Math.floor(Math.random() * userAgents.length)];
+      
+      // 高度なサイト分析とCloudflare検出
+      const hostname = new URL(url).hostname;
+      const isCloudflareProtected = await this.detectCloudflareProtection(hostname);
+      const siteRiskLevel = this.analyzeSiteRiskLevel(hostname);
+      
+      // リスクレベルに応じた待機時間設定
+      let waitTime = this.calculateWaitTime(siteRiskLevel, isCloudflareProtected);
+      
+      console.log(`🔍 Site analysis: ${hostname} - Risk: ${siteRiskLevel}, Cloudflare: ${isCloudflareProtected}, Wait: ${Math.round(waitTime/1000)}s`);
+      
+      console.log(`⏳ Waiting ${Math.round(waitTime/1000)}s before accessing ${hostname}...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+      
+      console.log(`🌐 Accessing URL with UA: ${randomUA.split(' ')[0]}...`);
+      
+      // 高度なCloudflare回避ヘッダー
+      const headers = this.generateAdvancedHeaders(randomUA, hostname, isCloudflareProtected);
+      
+      // リトライ機構付きの高度なリクエスト実行
+      const response = await this.executeRequestWithRetry(url, headers, isCloudflareProtected);
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -669,6 +833,204 @@ export class FetchExtractTool extends RunnerTool {
       return `${hostname}からの企業情報です。ウェブマーケティング、データ分析、SaaS業界に関する情報が含まれています。`;
     }
   }
+
+  // URL存在チェック（HEAD リクエスト）
+  private async checkUrlExists(url: string): Promise<boolean> {
+    try {
+      const response = await fetch(url, {
+        method: 'HEAD',
+        signal: AbortSignal.timeout(10000),
+        //@ts-ignore
+        rejectUnauthorized: false
+      });
+      return response.ok;
+    } catch (error) {
+      console.log(`❌ URL check failed for ${url}: ${error instanceof Error ? error.message : error}`);
+      return false;
+    }
+  }
+
+  // 代替URL検索
+  private async findAlternativeUrl(originalUrl: string): Promise<string | null> {
+    try {
+      const hostname = new URL(originalUrl).hostname;
+      
+      // 一般的な代替パターンを試行
+      const alternatives = [
+        originalUrl.replace(/\/press-release\/show\//, '/press/'),
+        originalUrl.replace(/\/release\//, '/news/'),
+        originalUrl.replace(/\/show\//, '/'),
+        `https://${hostname}`, // ルートページ
+        `https://${hostname}/news`, // ニュースページ
+        `https://${hostname}/press` // プレスページ
+      ];
+
+      for (const altUrl of alternatives) {
+        if (altUrl !== originalUrl && await this.checkUrlExists(altUrl)) {
+          return altUrl;
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.log(`❌ Alternative URL search failed: ${error}`);
+      return null;
+    }
+  }
+
+  // Cloudflare保護検出
+  private async detectCloudflareProtection(hostname: string): Promise<boolean> {
+    // 既知のCloudflare使用サイトパターン
+    const cloudflarePatterns = [
+      'gartner.com', 'idc.com', 'forrester.com',
+      'techcrunch.com', 'wired.com', 'discord.com'
+    ];
+    
+    return cloudflarePatterns.some(pattern => hostname.includes(pattern));
+  }
+
+  // サイトリスクレベル分析
+  private analyzeSiteRiskLevel(hostname: string): 'low' | 'medium' | 'high' | 'critical' {
+    // 政府・公的機関
+    if (hostname.includes('go.jp') || hostname.includes('city.') || hostname.includes('pref.')) {
+      return 'high';
+    }
+    
+    // 大手IT企業・コンサル
+    if (['gartner.com', 'idc.com', 'microsoft.com', 'aws.amazon.com'].some(p => hostname.includes(p))) {
+      return 'critical';
+    }
+    
+    // 企業サイト
+    if (hostname.includes('co.jp') || hostname.includes('.com')) {
+      return 'medium';
+    }
+    
+    return 'low';
+  }
+
+  // 待機時間計算
+  private calculateWaitTime(riskLevel: string, isCloudflareProtected: boolean): number {
+    let baseTime = 2000; // 2秒ベース
+    
+    switch (riskLevel) {
+      case 'critical':
+        baseTime = 8000 + Math.random() * 7000; // 8-15秒
+        break;
+      case 'high':
+        baseTime = 5000 + Math.random() * 5000; // 5-10秒
+        break;
+      case 'medium':
+        baseTime = 3000 + Math.random() * 4000; // 3-7秒
+        break;
+      default:
+        baseTime = 1000 + Math.random() * 2000; // 1-3秒
+    }
+    
+    if (isCloudflareProtected) {
+      baseTime *= 1.5; // Cloudflare対応で1.5倍
+    }
+    
+    return baseTime;
+  }
+
+  // 高度なヘッダー生成
+  private generateAdvancedHeaders(userAgent: string, hostname: string, isCloudflareProtected: boolean): Record<string, string> {
+    const baseHeaders = {
+      'User-Agent': userAgent,
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+      'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
+      'Accept-Encoding': 'gzip, deflate, br, zstd',
+      'Connection': 'keep-alive',
+      'Upgrade-Insecure-Requests': '1',
+      'DNT': '1'
+    };
+
+    if (isCloudflareProtected) {
+      // Cloudflare対策ヘッダー
+      return {
+        ...baseHeaders,
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Sec-Ch-Ua': '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
+        'Cache-Control': 'max-age=0',
+        // より人間らしいヘッダー順序
+        'Pragma': 'no-cache'
+      };
+    } else {
+      // 通常サイト用ヘッダー
+      return {
+        ...baseHeaders,
+        'Referer': 'https://www.google.com/',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'cross-site',
+        'Sec-Fetch-User': '?1'
+      };
+    }
+  }
+
+  // リトライ付きリクエスト実行
+  private async executeRequestWithRetry(url: string, headers: Record<string, string>, isCloudflareProtected: boolean, maxRetries: number = 3): Promise<Response> {
+    let lastError: Error = new Error('Unknown error');
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🔄 Request attempt ${attempt}/${maxRetries} for ${url}`);
+        
+        const response = await fetch(url, {
+          method: 'GET',
+          headers,
+          signal: AbortSignal.timeout(isCloudflareProtected ? 45000 : 30000),
+          //@ts-ignore
+          rejectUnauthorized: false
+        });
+
+        if (response.ok) {
+          console.log(`✅ Request successful on attempt ${attempt}`);
+          return response;
+        }
+
+        // 429 (Rate Limit) の場合は長めに待機
+        if (response.status === 429) {
+          const retryAfter = response.headers.get('Retry-After');
+          const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 10000 * attempt;
+          console.log(`⏳ Rate limited. Waiting ${waitTime/1000}s before retry...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          continue;
+        }
+
+        // 403/404 の場合でも最後まで試行
+        if (attempt === maxRetries) {
+          return response; // 最後の試行の結果を返す
+        }
+
+        // 指数バックオフ
+        const backoffTime = Math.pow(2, attempt) * 1000;
+        console.log(`⏳ Waiting ${backoffTime/1000}s before retry...`);
+        await new Promise(resolve => setTimeout(resolve, backoffTime));
+
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('Unknown error');
+        console.log(`❌ Attempt ${attempt} failed: ${lastError.message}`);
+        
+        if (attempt === maxRetries) {
+          throw lastError;
+        }
+        
+        // 指数バックオフ
+        const backoffTime = Math.pow(2, attempt) * 1000;
+        console.log(`⏳ Waiting ${backoffTime/1000}s before retry...`);
+        await new Promise(resolve => setTimeout(resolve, backoffTime));
+      }
+    }
+    
+    throw lastError;
+  }
 }
 
 // 正規化・重複排除ツール
@@ -790,8 +1152,9 @@ export class StructureFindingsTool extends RunnerTool {
       const maxClaims = params.max_claims || 8;
       const findings = [];
       
-      // 実際のコンテンツから意味のある要点を抽出
-      for (let i = 0; i < Math.min(maxClaims, docs.length); i++) {
+      // 実際のコンテンツから意味のある要点を抽出（最初の3文書のみ処理して高速化）
+      const docsToProcess = Math.min(3, docs.length);
+      for (let i = 0; i < docsToProcess; i++) {
         const doc = docs[i];
         console.log(`📄 Processing document ${i}:`, {
           hasDoc: !!doc,
@@ -804,11 +1167,29 @@ export class StructureFindingsTool extends RunnerTool {
           continue;
         }
 
-        // URLドメインから情報源を特定
-        const hostname = new URL(doc.url).hostname;
-        const extractedFindings = await this.extractMeaningfulFindings(doc, hostname);
-        
-        findings.push(...extractedFindings);
+        try {
+          // URLドメインから情報源を特定
+          const hostname = new URL(doc.url).hostname;
+          const extractedFindings = await this.extractMeaningfulFindings(doc, hostname);
+          
+          findings.push(...extractedFindings);
+          
+          // Claude APIレート制限対策のため少し待機
+          if (i < docs.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        } catch (error) {
+          console.error(`❌ Failed to process document ${i}:`, error);
+          // エラーが発生した場合はフォールバック処理を実行
+          try {
+            const hostname = new URL(doc.url).hostname;
+            const fallbackFindings = this.fallbackExtraction(doc, hostname, doc.content);
+            findings.push(...fallbackFindings);
+          } catch (fallbackError) {
+            console.error(`❌ Fallback also failed for document ${i}:`, fallbackError);
+          }
+          continue;
+        }
       }
 
       const result: FindingsResult = { findings: findings.slice(0, maxClaims) };
@@ -828,34 +1209,21 @@ export class StructureFindingsTool extends RunnerTool {
     console.log(`🔍 Analyzing content from ${hostname} using Claude API...`);
     
     try {
-      // Claude APIを使って実際のコンテンツを分析
+      // Claude APIを使って実際のコンテンツを分析（短縮版プロンプト）
       const analysisPrompt = `
-以下のウェブサイトのコンテンツを分析し、重要な要点を抽出してください。
-特に以下の観点から分析してください：
-
-1. 企業・組織の基本情報（設立年、所在地、代表者など）
-2. 事業内容・サービス内容
-3. 財務情報・成長指標
-4. 技術・専門性
-5. 採用・人材戦略
-6. 最近のニュース・プレスリリース
-7. 競合優位性・差別化要因
-
-各要点について、信頼度（0.0-1.0）も含めて回答してください。
+以下のコンテンツから重要な情報を3つ抽出してJSON形式で回答してください：
 
 URL: ${doc.url}
 タイトル: ${doc.title}
-コンテンツ:
-${content.substring(0, 10000)} ${content.length > 10000 ? '...[truncated]' : ''}
+コンテンツ: ${content.substring(0, 5000)}${content.length > 5000 ? '...' : ''}
 
-回答は以下のJSON形式でお願いします：
+JSON形式：
 {
   "findings": [
     {
-      "claim": "具体的な要点",
-      "snippet": "根拠となるテキストの引用",
-      "confidence": 0.9,
-      "category": "basic_info | business | financial | technical | hiring | news | competitive"
+      "claim": "重要な情報",
+      "snippet": "根拠テキスト",
+      "confidence": 0.8
     }
   ]
 }`;
@@ -897,19 +1265,25 @@ ${content.substring(0, 10000)} ${content.length > 10000 ? '...[truncated]' : ''}
       const Anthropic = (await import('@anthropic-ai/sdk')).default;
       const anthropic = new Anthropic({
         apiKey: process.env.ANTHROPIC_API_KEY!,
+        timeout: 15000, // 15秒のタイムアウト設定
       });
 
-      const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4000,
-        temperature: 0.3,
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ]
-      });
+      const response = await Promise.race([
+        anthropic.messages.create({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 2000, // トークン数を減らして高速化
+          temperature: 0.1, // より一貫した結果のために温度を下げる
+          messages: [
+            {
+              role: 'user',
+              content: prompt
+            }
+          ]
+        }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Claude API timeout')), 10000)
+        )
+      ]);
 
       const data = response.content[0]?.type === 'text' 
         ? response.content[0].text 

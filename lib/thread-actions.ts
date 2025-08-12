@@ -117,13 +117,15 @@ export async function getThreadById(threadId: string): Promise<ChatThread | null
 // スレッドのメッセージ取得
 export async function getThreadMessages(threadId: string): Promise<ChatMessage[]> {
   try {
-    // インデックス作成まで orderBy を除外
-    const q = query(
+    console.log('🔍 Fetching messages for thread:', threadId);
+    
+    // messagesコレクションのみから取得（一元化）
+    const messagesQ = query(
       collection(db, 'messages'),
       where('threadId', '==', threadId)
     );
     
-    const querySnapshot = await getDocs(q);
+    const querySnapshot = await getDocs(messagesQ);
     const messages: ChatMessage[] = [];
     
     querySnapshot.forEach((doc) => {
@@ -136,10 +138,20 @@ export async function getThreadMessages(threadId: string): Promise<ChatMessage[]
       
       messages.push({
         id: doc.id,
-        ...data,
-        timestamp
+        threadId: data.threadId,
+        characterId: data.characterId,
+        userId: data.userId,
+        content: data.content,
+        type: data.type || (data.role === 'user' ? 'user' : 'assistant'), // typeを優先、フォールバック用にroleも確認
+        timestamp,
+        isMarkdown: data.isMarkdown || false,
+        images: data.images,
+        isAutoNotification: data.isAutoNotification || false
       } as ChatMessage);
     });
+    
+    console.log(`📨 Retrieved ${messages.length} messages from messages collection`);
+    console.log(`🔔 Auto notifications found: ${messages.filter(m => m.isAutoNotification).length}`);
     
     // クライアントサイドでソート（インデックス作成まで）
     return messages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
@@ -157,7 +169,8 @@ export async function addMessageToThread(
   content: string,
   type: 'user' | 'assistant',
   isMarkdown: boolean = false,
-  images?: string[]
+  images?: string[],
+  isAutoNotification: boolean = false
 ): Promise<string> {
   try {
     // メッセージ追加
@@ -170,6 +183,7 @@ export async function addMessageToThread(
       timestamp: new Date(),
       isMarkdown,
       ...(images && images.length > 0 && { images }),
+      ...(isAutoNotification && { isAutoNotification }),
     };
 
     const docRef = await addDoc(collection(db, 'messages'), messageData);

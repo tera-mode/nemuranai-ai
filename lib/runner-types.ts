@@ -232,7 +232,7 @@ export const DEFAULT_RUNNER_ENVIRONMENT: RunnerEnvironment = {
     backoff_factor: 2.0
   },
   timeouts: {
-    node_ms: 30000,  // 30秒
+    node_ms: 60000,  // 60秒（Claude API分析のため延長）
     run_ms: 1800000  // 30分
   }
 };

@@ -57,26 +57,51 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
     loadMessages();
   }, [thread]);
 
-  // デザイン生成状況をポーリング
+  // タスク実行状況をポーリング（デザイン・解析共通）
   useEffect(() => {
-    if (!thread || character.domain !== 'designer') return;
+    if (!thread) return;
     
-    // 最新のメッセージに「AIが作業中です...」が含まれているかチェック
+    // より強固な実行状態判定（複数の条件を組み合わせ）
     const lastMessage = messages[messages.length - 1];
     const isGeneratingMessage = lastMessage && 
       lastMessage.type === 'assistant' && 
-      lastMessage.content.includes('AIが作業中です...') &&
-      !lastMessage.content.includes('完成しました');
+      (
+        // デザインドメインの実行中判定
+        (character.domain === 'designer' && 
+         lastMessage.content.includes('AIが作業中です...') && 
+         !lastMessage.content.includes('完成しました')) ||
+        
+        // 解析ドメインの実行中判定（より幅広いパターン）
+        (character.domain === 'analysis' && (
+          lastMessage.content.includes('実行を開始しました') ||
+          lastMessage.content.includes('処理を実行中です') ||
+          lastMessage.content.includes('🚀 **実行を開始しました！**') ||
+          lastMessage.content.includes('バックグラウンドで実行中です') ||
+          lastMessage.content.includes('実行プランを準備しました') ||
+          (lastMessage.content.includes('実行ID:') && lastMessage.content.includes('running'))
+        ))
+      );
+    
+    console.log('🔍 Polling trigger check:', {
+      domain: character.domain,
+      hasLastMessage: !!lastMessage,
+      lastMessageType: lastMessage?.type,
+      isGeneratingMessage,
+      lastMessageSnippet: lastMessage?.content.substring(0, 100),
+      currentPolling: !!pollingIntervalRef.current,
+      designCompleted: designCompletedRef.current
+    });
     
     if (isGeneratingMessage && !pollingIntervalRef.current && !designCompletedRef.current) {
-      console.log('🎯 Starting design status polling...');
+      console.log('🎯 Starting task status polling for domain:', character.domain);
       let errorCount = 0;
       const maxErrors = 3;
       
       pollingIntervalRef.current = setInterval(async () => {
         try {
-          console.log('🔄 Polling design session status for thread:', thread.id);
-          const response = await fetch(`/api/design-session/${thread.id}`);
+          if (character.domain === 'designer') {
+            console.log('🔄 Polling design session status for thread:', thread.id);
+            const response = await fetch(`/api/design-session/${thread.id}`);
           
           if (response.ok) {
             const sessionData = await response.json();
@@ -144,6 +169,90 @@ export function ChatInterface({ character, thread, onThreadUpdate, onMessageSent
           } else {
             // リセット成功した場合のエラーカウント
             errorCount = 0;
+          }
+          } else if (character.domain === 'analysis') {
+            // 解析キャラクターの場合は直接メッセージをポーリング
+            console.log('🔄 Polling messages for analysis thread:', thread.id);
+            
+            try {
+              const updatedMessages = await getThreadMessages(thread.id);
+              
+              // 新しい自動通知メッセージがあるかチェック
+              const hasNewAutoNotification = updatedMessages.some(msg => 
+                msg.isAutoNotification && 
+                !messages.some(existingMsg => existingMsg.id === msg.id)
+              );
+            
+              // タスク完了メッセージがあるかチェック（より幅広いパターン）
+              const hasCompletionMessage = updatedMessages.some(msg => 
+                msg.content.includes('🎉 **タスクが完了しました！**') ||
+                msg.content.includes('✅ **実行が完了しました！**') ||
+                msg.content.includes('実行が完了しました') ||
+                msg.content.includes('タスクが完了しました') ||
+                msg.content.includes('調査結果') ||
+                msg.content.includes('要点抽出結果')
+              );
+              
+              console.log('🔍 Analysis polling check:', {
+                totalMessages: updatedMessages.length,
+                currentMessages: messages.length,
+                hasNewAutoNotification,
+                hasCompletionMessage,
+                newAutoNotifications: updatedMessages.filter(msg => 
+                  msg.isAutoNotification && !messages.some(existingMsg => existingMsg.id === msg.id)
+                ).length
+              });
+              
+              // 自動通知がある場合のみポーリングを停止
+              if (hasNewAutoNotification || hasCompletionMessage) {
+                console.log('✅ Analysis task completed! Found completion notification');
+                
+                // 完了フラグを設定してポーリング停止
+                designCompletedRef.current = true;
+                if (pollingIntervalRef.current) {
+                  clearInterval(pollingIntervalRef.current);
+                  pollingIntervalRef.current = null;
+                }
+                if (pollingTimeoutRef.current) {
+                  clearTimeout(pollingTimeoutRef.current);
+                  pollingTimeoutRef.current = null;
+                }
+                
+                // メッセージを更新
+                setMessages(updatedMessages);
+                
+                // スレッドリストも更新
+                if (onMessageSent) {
+                  onMessageSent();
+                }
+              } else if (updatedMessages.length > messages.length) {
+                console.log('🔄 New messages found, but no completion notification yet. Continuing to poll...');
+                // メッセージは更新するが、ポーリングは継続
+                setMessages(updatedMessages);
+                if (onMessageSent) {
+                  onMessageSent();
+                }
+              } else {
+                console.log('🔍 No new completion notifications found. Continuing to poll...');
+              }
+              
+            } catch (pollingError) {
+              console.error('❌ Polling error for analysis domain:', pollingError);
+              errorCount++;
+              
+              // エラーが続く場合はポーリングを停止
+              if (errorCount >= maxErrors) {
+                console.log(`🚫 Polling stopped due to repeated errors (${maxErrors} attempts)`);
+                if (pollingIntervalRef.current) {
+                  clearInterval(pollingIntervalRef.current);
+                  pollingIntervalRef.current = null;
+                }
+                if (pollingTimeoutRef.current) {
+                  clearTimeout(pollingTimeoutRef.current);
+                  pollingTimeoutRef.current = null;
+                }
+              }
+            }
           }
         } catch (error) {
           console.error('Polling error:', error);

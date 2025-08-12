@@ -9,6 +9,179 @@ import { DEFAULT_SKILL_REGISTRY } from '@/lib/plan-spec-types';
 import { RunnerEngine } from '@/lib/runner-engine';
 import { RunRequest, DEFAULT_RUNNER_ENVIRONMENT } from '@/lib/runner-types';
 
+// AIによるレポート整理関数
+async function organizeReportWithAI(artifactContent: any): Promise<string> {
+  try {
+    console.log('🤖 Starting AI report organization...');
+    
+    // コンテンツの形式を判定
+    let inputContent = '';
+    
+    if (typeof artifactContent === 'string') {
+      inputContent = artifactContent;
+    } else if (artifactContent.report_md) {
+      // エスケープされたMarkdownを正常化
+      inputContent = unescapeJsonString(artifactContent.report_md);
+    } else if (artifactContent.findings) {
+      // Findingsデータを構造化
+      inputContent = `調査で発見された${artifactContent.findings.length}件の要点:\n\n`;
+      artifactContent.findings.forEach((finding: any, index: number) => {
+        inputContent += `${index + 1}. ${finding.claim}\n`;
+        if (finding.support && finding.support[0]) {
+          inputContent += `   出典: ${finding.support[0].title} (${finding.support[0].url})\n`;
+          if (finding.support[0].snippet) {
+            inputContent += `   概要: ${finding.support[0].snippet.substring(0, 200)}...\n`;
+          }
+        }
+        if (finding.confidence) {
+          inputContent += `   信頼度: ${Math.round(finding.confidence * 100)}%\n`;
+        }
+        inputContent += '\n';
+      });
+    } else {
+      // JSONデータを文字列に変換
+      inputContent = `調査結果データ:\n${JSON.stringify(artifactContent, null, 2)}`;
+    }
+
+    // Claude APIでレポートを再整理
+    const anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY!,
+    });
+
+    const reorganizePrompt = `あなたはレポート生成AIです。以後、**出力は2部構成**にしてください。
+
+**第1部：ユーザー向け（Markdown）**
+
+* ここは**コードブロックで囲まない**。引用符も付けない。
+* 普通のMarkdownとして**そのまま表示**できること。
+* 見出し、箇条書き、表などの装飾を使用可。
+* 技術的な詳細は省略し、ビジネス価値のある情報に焦点を当てる
+* 重要なポイントは太字で強調する
+* 日本語として自然な文章にする
+
+**区切り**
+
+* 1行だけ \`---\` を出力する。
+
+**第2部：機械可読（JSON）**
+
+* ここは **\`\`\`json** フェンスで囲む。
+* スキーマは以下のキーを必須：
+  * \`report_date\` (YYYY-MM-DD)
+  * \`item_count\` (number)
+  * \`executive_summary\` (string)
+  * \`key_findings\` (array of strings)
+* 第1部と**同じ内容**を表現する。Markdown文字列を入れない。
+* 数値は数値型で、改行は入れない。
+
+**禁止事項**
+
+* Markdown部をコードブロックやJSON文字列で包むこと
+* \`\\n\` で改行をエスケープすること
+* 2部を逆順に出すこと
+
+**調査データ**：
+${inputContent.substring(0, 4000)}
+
+上記のデータを、経営陣でも理解しやすいビジネスレポートとして2部構成で整理してください。`;
+
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
+      temperature: 0.3,
+      messages: [{ role: 'user', content: reorganizePrompt }],
+    });
+
+    const responseText = message.content[0];
+    if (responseText?.type === 'text') {
+      console.log('✅ AI report organization completed');
+      
+      // 2部構成の出力から第1部（Markdown部分）のみを抽出
+      const fullText = responseText.text;
+      const parts = fullText.split('---');
+      
+      if (parts.length >= 2) {
+        // 第1部（Markdown部分）を取得
+        const markdownPart = parts[0].trim();
+        console.log('📄 Extracted Markdown part from 2-part response');
+        return markdownPart;
+      } else {
+        // 区切りがない場合はそのまま返す（フォールバック）
+        console.log('⚠️ No separator found, returning full response');
+        return fullText;
+      }
+    }
+
+    // AIが失敗した場合のフォールバック
+    console.log('⚠️ AI organization failed, using fallback');
+    return createFallbackMarkdownReport(inputContent);
+
+  } catch (error) {
+    console.error('❌ AI report organization error:', error);
+    // エラー時は整理されたMarkdownとして返す
+    if (typeof artifactContent === 'string') {
+      return createFallbackMarkdownReport(artifactContent);
+    } else if (artifactContent.report_md) {
+      return unescapeJsonString(artifactContent.report_md).substring(0, 2000);
+    } else {
+      return createFallbackMarkdownReport(JSON.stringify(artifactContent, null, 2));
+    }
+  }
+}
+
+// JSONエスケープ文字列を正常化する共通関数
+function unescapeJsonString(str: string): string {
+  console.log('🔧 Before unescape:', str.substring(0, 200));
+  
+  // 最初にJSONとして正しく解析できるかチェック
+  try {
+    // 完全にJSONエンコードされている場合は、JSON.parseを使用
+    if (str.startsWith('"') && str.endsWith('"')) {
+      const unescaped = JSON.parse(str);
+      console.log('✅ Successfully parsed as JSON string');
+      return unescaped;
+    }
+  } catch (error) {
+    // JSON.parseが失敗した場合は手動でエスケープを解除
+    console.log('⚠️ Failed to parse as JSON, using manual unescape');
+  }
+
+  const result = str
+    .replace(/\\n/g, '\n')      // 改行文字を正常化
+    .replace(/\\"/g, '"')       // エスケープされたクォートを修正  
+    .replace(/\\t/g, '\t')      // タブ文字を修正
+    .replace(/\\r/g, '\r')      // キャリッジリターンを修正
+    .replace(/\\\./g, '.')      // エスケープされたドットを修正
+    .replace(/\\:/g, ':')       // エスケープされたコロンを修正
+    .replace(/\\#/g, '#')       // エスケープされたハッシュを修正
+    .replace(/\\\*/g, '*')      // エスケープされたアスタリスクを修正
+    .replace(/\\\[/g, '[')      // エスケープされた角括弧を修正
+    .replace(/\\\]/g, ']')      // エスケープされた角括弧を修正
+    .replace(/\\\(/g, '(')      // エスケープされた丸括弧を修正
+    .replace(/\\\)/g, ')')      // エスケープされた丸括弧を修正
+    .replace(/\\-/g, '-')       // エスケープされたハイフンを修正
+    .replace(/\\_/g, '_')       // エスケープされたアンダースコアを修正
+    .replace(/\\~/g, '~')       // エスケープされたチルダを修正
+    .replace(/\\`/g, '`')       // エスケープされたバッククォートを修正
+    .replace(/\\!/g, '!')       // エスケープされた感嘆符を修正
+    .replace(/\\@/g, '@')       // エスケープされたアットマークを修正
+    .replace(/\\$/g, '$')       // エスケープされたドル記号を修正
+    .replace(/\\%/g, '%')       // エスケープされたパーセント記号を修正
+    .replace(/\\\^/g, '^')      // エスケープされたハット記号を修正
+    .replace(/\\&/g, '&')       // エスケープされたアンパサンドを修正
+    .replace(/\\\+/g, '+')      // エスケープされたプラス記号を修正
+    .replace(/\\=/g, '=')       // エスケープされたイコール記号を修正
+    .replace(/\\\{/g, '{')      // エスケープされた波括弧を修正
+    .replace(/\\\}/g, '}')      // エスケープされた波括弧を修正
+    .replace(/\\\|/g, '|')      // エスケープされたパイプ記号を修正
+    .replace(/\\\</g, '<')      // エスケープされた小なり記号を修正
+    .replace(/\\\>/g, '>')      // エスケープされた大なり記号を修正
+    .replace(/\\\\/g, '\\');    // バックスラッシュを修正（最後に処理）
+    
+  console.log('🔧 After unescape:', result.substring(0, 200));
+  return result;
+}
+
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 });
@@ -462,7 +635,8 @@ async function handleExistingPlannerSession(plannerSession: any, message: string
   try {
     // 実行完了後の結果確認
     if (plannerSession.status === 'execution_started' && 
-        (message.includes('結果') || message.includes('状況') || message.includes('どうなった') || message.includes('完了'))) {
+        (message.includes('結果') || message.includes('状況') || message.includes('どうなった') || message.includes('完了') || 
+         message.includes('終わった') || message.includes('確認') || message.includes('レポート'))) {
       console.log('📊 Checking execution results...');
       
       // アーティファクトから最終結果を取得
@@ -497,6 +671,12 @@ async function handleExistingPlannerSession(plannerSession: any, message: string
           });
           
           if (latestSession.status === 'completed' && latestSession.result) {
+            // PlannerSessionを先に更新
+            await PlannerManager.updateSession(plannerSession.id, {
+              status: 'execution_completed',
+              run_result: latestSession.result
+            });
+            
             // 最終成果物を取得
             const deliverables = latestSession.result.deliverables || [];
             if (deliverables.length > 0) {
@@ -504,10 +684,6 @@ async function handleExistingPlannerSession(plannerSession: any, message: string
               const reportContent = await ArtifactStorage.getArtifactContent(finalArtifactId);
               
               if (reportContent) {
-                await PlannerManager.updateSession(plannerSession.id, {
-                  status: 'execution_completed'
-                });
-                
                 return formatSpecBuilderResponse(character,
                   `🎉 **実行が完了しました！**\n\n` +
                   `以下が調査結果のレポートです：\n\n` +
@@ -516,6 +692,14 @@ async function handleExistingPlannerSession(plannerSession: any, message: string
                 );
               }
             }
+            
+            // デフォルトの完了メッセージ
+            return formatSpecBuilderResponse(character,
+              `✅ **実行が完了しました！**\n\n` +
+              `実行時間: ${Math.floor(latestSession.result.execution_time_ms / 1000)}秒\n` +
+              `ステータス: ${latestSession.result.status}\n\n` +
+              `詳細な結果については、データベースに保存されています。`
+            );
           } else {
             console.log('📊 Runner session status:', latestSession.status);
           }
@@ -538,8 +722,8 @@ async function handleExistingPlannerSession(plannerSession: any, message: string
     }
     
     if (plannerSession.status === 'plan_ready') {
-    // 実行開始判定
-    if (message.toLowerCase().includes('実行開始') || 
+      // 実行開始判定
+      if (message.toLowerCase().includes('実行開始') || 
         message.toLowerCase().includes('実行') || 
         message.toLowerCase().includes('開始') ||
         message.toLowerCase().includes('承認') ||
@@ -592,10 +776,58 @@ async function handleExistingPlannerSession(plannerSession: any, message: string
           setImmediate(async () => {
             try {
               console.log('🎬 Starting background runner execution');
-              await runner.run(execThreadId, execUserId);
-              console.log('✅ Background execution completed');
+              const result = await runner.run(execThreadId, execUserId);
+              console.log('✅ Background execution completed:', result.status);
+              
+              // PlannerSessionのステータスを完了に更新
+              try {
+                const finalStatus = result.status === 'success' ? 'execution_completed' : 'execution_failed';
+                await PlannerManager.updateSession(plannerSession.id, {
+                  status: finalStatus,
+                  run_result: result
+                });
+                console.log('✅ PlannerSession status updated to:', finalStatus);
+                
+                // 実行完了通知を自動送信（複数回のリトライ付き）
+                if (finalStatus === 'execution_completed') {
+                  let notificationSent = false;
+                  for (let retry = 0; retry < 3 && !notificationSent; retry++) {
+                    try {
+                      console.log(`📤 Sending completion notification (attempt ${retry + 1}/3)...`);
+                      await sendCompletionNotification(execThreadId, execUserId, result);
+                      console.log('✅ Completion notification sent successfully');
+                      notificationSent = true;
+                    } catch (notifyError) {
+                      console.error(`❌ Failed to send completion notification (attempt ${retry + 1}/3):`, notifyError);
+                      if (retry < 2) {
+                        // 指数バックオフでリトライ
+                        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retry) * 1000));
+                      }
+                    }
+                  }
+                  
+                  // 通知送信に失敗した場合のフォールバック
+                  if (!notificationSent) {
+                    console.error('🚨 All notification attempts failed. Manual check required.');
+                    // 将来的には別の通知手段やアラートシステムを実装可能
+                  }
+                }
+              } catch (updateError) {
+                console.error('❌ Failed to update PlannerSession status:', updateError);
+              }
+              
             } catch (error) {
               console.error('❌ Background execution failed:', error);
+              
+              // 失敗時もPlannerSessionを更新
+              try {
+                await PlannerManager.updateSession(plannerSession.id, {
+                  status: 'execution_failed'
+                });
+                console.log('✅ PlannerSession status updated to execution_failed');
+              } catch (updateError) {
+                console.error('❌ Failed to update PlannerSession status on failure:', updateError);
+              }
             }
           });
           
@@ -665,14 +897,76 @@ async function handleExistingPlannerSession(plannerSession: any, message: string
   }
   
   if (plannerSession.status === 'execution_completed') {
-    // 実行完了
-    return formatSpecBuilderResponse(character,
-      `✅ 実行が完了しました！\n\n` +
-      `**実行ID**: ${plannerSession.run_id}\n` +
-      `**ステータス**: completed\n\n` +
-      `実行結果については、Firestore内の runner_sessions コレクションで確認できます。\n` +
-      `成果物は artifacts コレクションに保存されています。`
-    );
+    // 実行完了 - 詳細結果を取得して表示
+    try {
+      console.log('📊 Fetching execution results...');
+      const runResult = plannerSession.run_result;
+      
+      if (runResult && runResult.deliverables && runResult.deliverables.length > 0) {
+        // 成果物がある場合は内容を表示
+        let resultContent = `✅ **実行が完了しました！**\n\n`;
+        
+        for (const deliverable of runResult.deliverables) {
+          if (deliverable.artifact_id) {
+            try {
+              const { ArtifactStorage } = await import('@/lib/artifact-storage');
+              const artifact = await ArtifactStorage.getArtifact(deliverable.artifact_id);
+              
+              if (artifact && artifact.content) {
+                resultContent += `## 📄 ${deliverable.name || '成果物'}\n\n`;
+                
+                // すべてのコンテンツをAI整理プロセスを通す（統一処理）
+                console.log('🤖 Processing execution result with AI organization...');
+                console.log('📊 Content type:', typeof artifact.content);
+                console.log('📊 Content preview:', JSON.stringify(artifact.content).substring(0, 200));
+                
+                const organizedContent = await organizeReportWithAI(artifact.content);
+                resultContent += organizedContent;
+                
+                resultContent += '\n\n';
+              }
+            } catch (artifactError) {
+              console.error('❌ Failed to fetch artifact:', artifactError);
+              resultContent += `## 📄 ${deliverable.name || '成果物'}\n\n`;
+              resultContent += `⚠️ データの取得中にエラーが発生しました。しばらく時間をおいてから再度確認してください。\n\n`;
+            }
+          }
+        }
+        
+        resultContent += `**実行時間**: ${runResult.execution_time_ms ? Math.round(runResult.execution_time_ms / 1000) : '不明'}秒\n`;
+        resultContent += `**ステータス**: ${runResult.status}\n\n`;
+        
+        if (runResult.summary) {
+          if (typeof runResult.summary === 'string') {
+            resultContent += `**サマリー**: ${runResult.summary}\n\n`;
+          } else {
+            // オブジェクト型のサマリーもAI整理プロセスを通す
+            console.log('🤖 Processing summary object with AI organization');
+            const organizedSummary = await organizeReportWithAI(runResult.summary);
+            resultContent += `**サマリー**:\n${organizedSummary}\n\n`;
+          }
+        }
+        
+        return formatSpecBuilderResponse(character, resultContent);
+        
+      } else {
+        // 成果物がない場合のフォールバック
+        return formatSpecBuilderResponse(character,
+          `✅ 実行が完了しました！\n\n` +
+          `**実行ID**: ${plannerSession.run_id}\n` +
+          `**ステータス**: completed\n\n` +
+          `実行は完了しましたが、成果物の取得に問題がありました。\n` +
+          `Firestore内の runner_sessions と artifacts コレクションをご確認ください。`
+        );
+      }
+    } catch (error) {
+      console.error('❌ Error fetching execution results:', error);
+      return formatSpecBuilderResponse(character,
+        `✅ 実行が完了しました！\n\n` +
+        `結果の詳細取得中にエラーが発生しました。\n` +
+        `Firestore内のデータを直接ご確認ください。`
+      );
+    }
   }
   
   if (plannerSession.status === 'execution_failed') {
@@ -685,8 +979,9 @@ async function handleExistingPlannerSession(plannerSession: any, message: string
     );
   }
   
-    // その他の状態
-    return formatSpecBuilderResponse(character, 'Plannerセッションを処理中...');
+  // その他の状態
+  return formatSpecBuilderResponse(character, 'Plannerセッションを処理中...');
+  
   } catch (error) {
     console.error('❌ Error in handleExistingPlannerSession:', error);
     return formatSpecBuilderResponse(character,
@@ -959,26 +1254,31 @@ async function generateJobSpecFromMessage(threadId: string, userId: string, mess
   const taskType = inferTaskType(message);
   
   return {
-    id: `job_${Date.now()}`,
-    description: message,
+    task_id: `job_${Date.now()}`,
+    user_intent: message,
+    goal: `「${message}」に関する包括的な情報をまとめること`,
     task_type: taskType,
-    deliverable: {
+    deliverables: [{
       type: 'report',
       format: 'md',
       schema_or_outline: ['概要', '詳細', '結論']
+    }],
+    inputs: {
+      seed_queries: [],
+      seed_urls: [],
+      datasets: []
     },
     constraints: {
       time_range: null,
       languages: ['ja'],
       domains_allow: [],
       domains_block: [],
-      privacy_level: 'public-ok'
+      privacy: 'public-ok',
+      budget_tokens: 10000,
+      deadline_hint: null
     },
     acceptance_criteria: [`「${message}」に関する包括的な情報をまとめること`],
-    user_id: userId,
-    thread_id: threadId,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
+    notes: []
   };
 }
 
@@ -1023,4 +1323,91 @@ async function fallbackToTraditionalFlow(threadId: string, userId: string, messa
     `承知いたしました。**「${message}」**の要件を整理させていただきます。\n\n` +
     formatSpecBuilderQuestions(questions)
   );
+}
+
+// 実行完了通知を自動送信する機能
+async function sendCompletionNotification(threadId: string, userId: string, result: any): Promise<void> {
+  try {
+    console.log('📤 Sending completion notification to thread:', threadId);
+    
+    // 結果データを整形
+    let notificationContent = `🎉 **タスクが完了しました！**\n\n`;
+    
+    if (result.deliverables && result.deliverables.length > 0) {
+      for (const deliverable of result.deliverables) {
+        if (deliverable.artifact_id) {
+          try {
+            const { ArtifactStorage } = await import('@/lib/artifact-storage');
+            const artifact = await ArtifactStorage.getArtifact(deliverable.artifact_id);
+            
+            if (artifact && artifact.content) {
+              notificationContent += `## 📄 ${deliverable.name || '調査結果'}\n\n`;
+              
+              // すべてのコンテンツをAI整理プロセスを通す（統一処理）
+              console.log('🤖 Processing notification content with AI organization...');
+              console.log('📊 Content type:', typeof artifact.content);
+              console.log('📊 Content preview:', JSON.stringify(artifact.content).substring(0, 200));
+              
+              const organizedContent = await organizeReportWithAI(artifact.content);
+              notificationContent += organizedContent;
+              
+              notificationContent += '\n\n';
+            }
+          } catch (artifactError) {
+            console.error('❌ Failed to fetch artifact for notification:', artifactError);
+            notificationContent += `**${deliverable.name || '成果物'}**: 取得エラー\n\n`;
+          }
+        }
+      }
+    }
+    
+    notificationContent += `**実行時間**: ${result.execution_time_ms ? Math.round(result.execution_time_ms / 1000) : '不明'}秒\n`;
+    notificationContent += `**ステータス**: ${result.status === 'success' ? '✅ 成功' : '❌ 失敗'}\n\n`;
+    
+    // addMessageToThreadを使用して一貫性を保つ
+    const { addMessageToThread } = await import('@/lib/thread-actions');
+    
+    await addMessageToThread(
+      threadId,
+      'nfqXlH8JP8L9ES6LYrLA', // Analysis characterのID
+      userId,
+      notificationContent,
+      'assistant',
+      true, // Markdownとして認識
+      undefined, // images
+      true // isAutoNotification
+    );
+    
+    console.log('✅ Completion notification saved to database');
+    
+  } catch (error) {
+    console.error('❌ Error sending completion notification:', error);
+    throw error;
+  }
+}
+
+// フォールバック用のMarkdownレポート生成
+function createFallbackMarkdownReport(content: string): string {
+  return `# 調査結果レポート
+
+*調査実施日: ${new Date().toLocaleDateString('ja-JP')}*
+
+## 概要
+
+調査が完了しました。以下に主要な結果をまとめています。
+
+## 詳細結果
+
+${content.substring(0, 1500)}
+
+${content.length > 1500 ? '\n...[結果が長いため一部省略]' : ''}
+
+## 注意事項
+
+- この結果は自動整理プロセスで生成されました
+- より詳細な分析が必要な場合は、手動での確認をお勧めします
+
+---
+
+*このレポートはAI社員オーケストレーターによる自動調査結果です。*`;
 }
