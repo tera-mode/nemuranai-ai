@@ -5,7 +5,10 @@ import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getUserCharacters } from '@/lib/character-actions';
 import { getRecentThreads, getUserThreads } from '@/lib/thread-actions';
-import { refreshFirestore } from '@/lib/firebase';
+import { refreshFirestore } from '@/lib/firebase-client';
+import { debugFirebaseAuth, debugNextAuthSession } from '@/lib/auth-debug';
+import { useFirebaseAuthSync } from '@/lib/firebase-auth-sync';
+import { testFirebaseAuthSync, checkFirebaseAuthState } from '@/lib/test-auth-sync';
 import { AICharacter, ChatThread } from '@/types/database';
 import { HamburgerMenu } from '@/components/HamburgerMenu';
 import { CharacterCarousel } from '@/components/CharacterCarousel';
@@ -18,6 +21,9 @@ function HomePageContent() {
   const [characters, setCharacters] = useState<AICharacter[]>([]);
   const [recentThreads, setRecentThreads] = useState<ChatThread[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Firebase Auth同期
+  const { syncStatus, error: syncError, firebaseUser } = useFirebaseAuthSync();
 
   const loadData = useCallback(async () => {
     try {
@@ -30,6 +36,36 @@ function HomePageContent() {
       }
       
       console.log('Home: Loading data for user:', userId);
+      console.log('Session details:', {
+        sessionExists: !!session,
+        sessionStatus: status,
+        userId: session?.user?.id,
+        email: session?.user?.email,
+        name: session?.user?.name,
+        provider: session?.provider
+      });
+      
+      console.log('Firebase Auth sync status:', {
+        syncStatus,
+        syncError,
+        firebaseUserExists: !!firebaseUser,
+        firebaseUID: firebaseUser?.uid
+      });
+      
+      // Firebase認証の詳細デバッグ
+      console.log('🔍 Running Firebase auth debug...');
+      await debugFirebaseAuth();
+      debugNextAuthSession();
+      
+      // 認証同期テスト
+      console.log('🧪 Testing Firebase Auth sync...');
+      const syncSuccess = await testFirebaseAuthSync();
+      console.log('Sync test result:', syncSuccess);
+      
+      // 同期後のFirebase Auth状態確認
+      setTimeout(() => {
+        checkFirebaseAuthState();
+      }, 1000);
       
       const [userCharacters, recentThreadsForDisplay, allThreads] = await Promise.all([
         getUserCharacters(userId),

@@ -1,4 +1,4 @@
-import { db } from '@/lib/firebase';
+import { db } from '@/lib/firebase-client';
 import { collection, addDoc, getDocs, query, where, doc, getDoc, updateDoc, deleteDoc, Timestamp, orderBy } from 'firebase/firestore';
 import { Brand, DesignJob, Artifact, Run, JobStatus } from '@/types/design';
 

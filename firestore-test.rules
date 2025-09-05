@@ -1,0 +1,15 @@
+rules_version = '2';
+
+// TEMPORARY TEST RULES - 一時的なテスト用ルール
+// Firebase Consoleですぐにテストするためのシンプルなルール
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 認証済みユーザーは全てのドキュメントにアクセス可能（テスト用）
+    // ⚠️ 本番環境では絶対に使用しないでください
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

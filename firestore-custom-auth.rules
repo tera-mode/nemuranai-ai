@@ -1,0 +1,80 @@
+rules_version = '2';
+
+// Firebase Security Rules with Custom Claims (NextAuth Compatible)
+// NextAuthのカスタムクレームを使用したセキュリティルール
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // カスタムクレーム検証関数
+    function isAuthenticatedWithClaims() {
+      return request.auth != null && 
+             request.auth.uid != null && 
+             request.auth.token != null;
+    }
+    
+    // ユーザーIDの照合関数
+    function getUserId() {
+      return request.auth.token.get('user_id', request.auth.uid);
+    }
+    
+    // ユーザーコレクション
+    match /users/{userId} {
+      allow read, write: if isAuthenticatedWithClaims() && 
+                            (request.auth.uid == userId || getUserId() == userId);
+      allow create: if isAuthenticatedWithClaims();
+    }
+
+    // キャラクターコレクション
+    match /characters/{characterId} {
+      allow read, write, update, delete: if isAuthenticatedWithClaims() &&
+                                           (resource == null || 
+                                            resource.data.userId == request.auth.uid ||
+                                            resource.data.userId == getUserId());
+      allow create: if isAuthenticatedWithClaims() && 
+                       request.resource.data.keys().hasAll(['userId']) &&
+                       (request.resource.data.userId == request.auth.uid ||
+                        request.resource.data.userId == getUserId());
+    }
+
+    // スレッドコレクション
+    match /threads/{threadId} {
+      allow read, write, update, delete: if isAuthenticatedWithClaims() &&
+                                           (resource == null || 
+                                            resource.data.userId == request.auth.uid ||
+                                            resource.data.userId == getUserId());
+      allow create: if isAuthenticatedWithClaims() && 
+                       request.resource.data.keys().hasAll(['userId']) &&
+                       (request.resource.data.userId == request.auth.uid ||
+                        request.resource.data.userId == getUserId());
+    }
+
+    // メッセージサブコレクション - 認証済みなら基本的にアクセス可能
+    match /threads/{threadId}/messages/{messageId} {
+      allow read, write, create, update, delete: if isAuthenticatedWithClaims();
+    }
+
+    // その他のコレクション（課金情報等）
+    match /billing_transactions/{transactionId} {
+      allow read: if isAuthenticatedWithClaims();
+      allow create: if false; // サーバーサイドのみ
+    }
+
+    match /design_jobs/{jobId} {
+      allow read, write, update, delete: if isAuthenticatedWithClaims();
+      allow create: if isAuthenticatedWithClaims() && 
+                       request.resource.data.keys().hasAll(['userId']);
+    }
+
+    match /temp_storage/{tempId} {
+      allow read, write, update, delete: if isAuthenticatedWithClaims();
+      allow create: if isAuthenticatedWithClaims() && 
+                       request.resource.data.keys().hasAll(['userId']);
+    }
+
+    // デフォルト拒否
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import { storage, auth } from '@/lib/firebase';
+import { storage, auth } from '@/lib/firebase-client';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 // ブラウザサイドでの画像アップロード（認証済みユーザー用）

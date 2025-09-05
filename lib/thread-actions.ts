@@ -1,4 +1,4 @@
-import { db } from '@/lib/firebase';
+import { db } from '@/lib/firebase-client';
 import { collection, addDoc, getDocs, query, where, doc, getDoc, updateDoc, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { ChatThread, ChatMessage } from '@/types/database';
 

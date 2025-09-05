@@ -1,4 +1,4 @@
-import { storage } from '@/lib/firebase';
+import { storage } from '@/lib/firebase-client';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 // 画像ファイルの検証

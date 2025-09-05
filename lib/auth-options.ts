@@ -1,7 +1,7 @@
 import GoogleProvider from 'next-auth/providers/google';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth } from '@/lib/firebase-client';
 import type { AuthOptions } from 'next-auth';
 
 export const authOptions: AuthOptions = {
@@ -9,6 +9,11 @@ export const authOptions: AuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          scope: 'openid email profile'
+        }
+      }
     }),
     CredentialsProvider({
       name: 'credentials',
@@ -71,12 +76,29 @@ export const authOptions: AuthOptions = {
   ],
   session: {
     strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  cookies: {
+    sessionToken: {
+      name: `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production'
+      }
+    }
   },
   callbacks: {
     session: async ({ session, token }) => {
       if (session?.user && token?.sub) {
         session.user.id = token.sub;
       }
+      console.log('NextAuth session callback:', {
+        sessionExists: !!session,
+        userId: session?.user?.id,
+        email: session?.user?.email
+      });
       return session;
     },
     jwt: async ({ user, token }) => {
@@ -86,7 +108,10 @@ export const authOptions: AuthOptions = {
       return token;
     },
   },
+  debug: process.env.NODE_ENV === 'development',
   pages: {
     signIn: '/auth/signin',
+    error: '/auth/signin', // リダイレクトエラーの場合もサインインページに戻る
   },
+  secret: process.env.NEXTAUTH_SECRET,
 };

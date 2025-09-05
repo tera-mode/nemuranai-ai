@@ -1,0 +1,89 @@
+rules_version = '2';
+
+// Final Firestore Security Rules
+// NextAuth + Firebase Client SDK 同期後の適切なセキュリティルール
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 認証チェック関数
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+    
+    // ユーザーID照合関数（カスタムクレーム対応）
+    function matchesUserId(userId) {
+      return request.auth.uid == userId ||
+             (request.auth.token != null && 
+              request.auth.token.get('user_id', '') == userId);
+    }
+    
+    // リソース所有者チェック
+    function ownsResource() {
+      return isAuthenticated() && 
+             (resource == null || matchesUserId(resource.data.userId));
+    }
+    
+    // 新規リソース所有者チェック
+    function ownsNewResource() {
+      return isAuthenticated() && 
+             request.resource != null &&
+             request.resource.data.keys().hasAll(['userId']) &&
+             matchesUserId(request.resource.data.userId);
+    }
+    
+    // Users collection - 自分のプロフィールのみアクセス可能
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && matchesUserId(userId);
+      allow create: if isAuthenticated() && matchesUserId(userId);
+    }
+
+    // Characters collection - 自分のキャラクターのみアクセス可能
+    match /characters/{characterId} {
+      allow read, write, update, delete: if ownsResource();
+      allow create: if ownsNewResource();
+    }
+
+    // Threads collection - 自分のスレッドのみアクセス可能
+    match /threads/{threadId} {
+      allow read, write, update, delete: if ownsResource();
+      allow create: if ownsNewResource();
+    }
+
+    // Messages subcollection - 親スレッドの所有者のみアクセス可能
+    match /threads/{threadId}/messages/{messageId} {
+      allow read, write, create, update, delete: if isAuthenticated() &&
+                                                     exists(/databases/$(database)/documents/threads/$(threadId)) &&
+                                                     matchesUserId(get(/databases/$(database)/documents/threads/$(threadId)).data.userId);
+    }
+
+    // Billing transactions - 自分の課金情報のみ読み取り可能
+    match /billing_transactions/{transactionId} {
+      allow read: if ownsResource();
+      allow create: if false; // サーバーサイドのみ
+    }
+
+    // Admin actions - サーバーサイドのみ
+    match /admin_actions/{actionId} {
+      allow read: if false;
+      allow create: if false;
+    }
+
+    // Design jobs - 自分のデザインジョブのみアクセス可能
+    match /design_jobs/{jobId} {
+      allow read, write, update, delete: if ownsResource();
+      allow create: if ownsNewResource();
+    }
+
+    // Temp storage - 自分の一時ファイルのみアクセス可能
+    match /temp_storage/{tempId} {
+      allow read, write, update, delete: if ownsResource();
+      allow create: if ownsNewResource();
+    }
+
+    // デフォルト拒否ルール
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

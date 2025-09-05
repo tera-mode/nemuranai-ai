@@ -27,7 +27,7 @@
     "eslint": "^9.32.0",
     "eslint-config-next": "^15.4.6",
     "firebase": "^12.1.0",
-    "firebase-admin": "^13.4.0",
+    "firebase-admin": "^13.5.0",
     "framer-motion": "^12.23.12",
     "jszip": "^3.10.1",
     "lucide-react": "^0.537.0",

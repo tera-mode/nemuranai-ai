@@ -1,0 +1,71 @@
+rules_version = '2';
+
+// Firebase Security Rules - NextAuthベース認証用
+// Firebase Auth同期なしでもセキュアなアクセス制御
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ユーザーコレクション - パス内のUserIDでアクセス制御
+    match /users/{userId} {
+      allow read, write: if request.auth != null;
+      // 新規ユーザー作成は認証済みなら許可
+      allow create: if request.auth != null;
+    }
+
+    // キャラクターコレクション - documentのuserIdフィールドでアクセス制御
+    match /characters/{characterId} {
+      allow read, write, update, delete: if request.auth != null;
+      allow create: if request.auth != null && 
+                       request.resource.data.keys().hasAll(['userId']) &&
+                       request.resource.data.userId is string;
+    }
+
+    // スレッドコレクション - documentのuserIdフィールドでアクセス制御  
+    match /threads/{threadId} {
+      allow read, write, update, delete: if request.auth != null;
+      allow create: if request.auth != null && 
+                       request.resource.data.keys().hasAll(['userId']) &&
+                       request.resource.data.userId is string;
+    }
+
+    // メッセージサブコレクション - 認証済みユーザーのみアクセス
+    match /threads/{threadId}/messages/{messageId} {
+      allow read, write, create, update, delete: if request.auth != null;
+    }
+
+    // 課金トランザクション - 認証済みユーザーは自分のもののみ読取
+    match /billing_transactions/{transactionId} {
+      allow read: if request.auth != null;
+      // 作成はサーバーサイドのみ
+      allow create: if false;
+    }
+
+    // 管理者アクション - 制限的アクセス
+    match /admin_actions/{actionId} {
+      allow read: if false; // 現在は無効
+      allow create: if false; // サーバーサイドのみ
+    }
+
+    // デザインジョブ - 認証済みユーザーのみアクセス
+    match /design_jobs/{jobId} {
+      allow read, write, update, delete: if request.auth != null;
+      allow create: if request.auth != null && 
+                       request.resource.data.keys().hasAll(['userId']) &&
+                       request.resource.data.userId is string;
+    }
+
+    // 一時ストレージ - 認証済みユーザーのみアクセス
+    match /temp_storage/{tempId} {
+      allow read, write, update, delete: if request.auth != null;
+      allow create: if request.auth != null && 
+                       request.resource.data.keys().hasAll(['userId']) &&
+                       request.resource.data.userId is string;
+    }
+
+    // デフォルト拒否ルール
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

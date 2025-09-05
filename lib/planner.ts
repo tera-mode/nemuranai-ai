@@ -1,5 +1,5 @@
 // Planner - 計画作成とモジュール選定システム
-import { db } from '@/lib/firebase';
+import { db } from '@/lib/firebase-client';
 import { collection, addDoc, getDocs, query, where, doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import {
   PlannerSession,

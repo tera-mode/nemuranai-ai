@@ -1,6 +1,6 @@
 // Runner Engine - DAG実行エンジンとエラーハンドリング
 
-import { db } from '@/lib/firebase';
+import { db } from '@/lib/firebase-client';
 import { collection, addDoc, doc, updateDoc, Timestamp } from 'firebase/firestore';
 import {
   RunnerSession,

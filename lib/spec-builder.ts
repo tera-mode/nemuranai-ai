@@ -7,7 +7,7 @@ function generateUuid(): string {
     return v.toString(16);
   });
 }
-import { db } from '@/lib/firebase';
+import { db } from '@/lib/firebase-client';
 import { collection, addDoc, getDocs, query, where, doc, getDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import {
   SpecBuilderSession,

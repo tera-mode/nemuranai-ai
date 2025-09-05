@@ -1,6 +1,6 @@
 // Artifact Storage - 成果物保存システム
 
-import { db } from '@/lib/firebase';
+import { db } from '@/lib/firebase-client';
 import { collection, addDoc, doc, getDoc, updateDoc, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { Artifact, PutArtifactParams } from '@/lib/runner-types';
 

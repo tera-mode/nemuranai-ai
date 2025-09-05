@@ -31,7 +31,12 @@
       "Bash(git log:*)",
       "WebFetch(domain:vercel.com)",
       "Bash(npx tsc:*)",
-      "Bash(npm run typecheck:*)"
+      "Bash(npm run typecheck:*)",
+      "Bash(git clean:*)",
+      "Bash(firebase deploy:*)",
+      "Bash(firebase login:*)",
+      "Bash(sed:*)",
+      "Bash(rd:*)"
     ],
     "deny": []
   }

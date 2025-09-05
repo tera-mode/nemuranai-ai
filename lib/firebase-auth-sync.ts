@@ -1,78 +1,113 @@
-import { auth } from '@/lib/firebase';
-import { signInWithCustomToken } from 'firebase/auth';
-import { Session } from 'next-auth';
+import { auth } from '@/lib/firebase-client';
+import { signInWithCustomToken, signOut } from 'firebase/auth';
+import { useSession } from 'next-auth/react';
+import { useEffect, useState } from 'react';
 
-// NextAuthセッションからFirebase認証を同期
-export async function syncFirebaseAuth(session: Session | null) {
-  if (!session?.user) {
-    console.log('🔐 No NextAuth session, skipping Firebase sync');
-    return null;
-  }
+// NextAuthセッションをFirebase Authに同期
+export function useFirebaseAuthSync() {
+  const { data: session, status } = useSession();
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'failed'>('idle');
+  const [error, setError] = useState<string | null>(null);
 
-  try {
-    console.log('🔄 Syncing NextAuth with Firebase Auth...');
-    
-    // 既にFirebaseで認証済みかチェック
-    const currentUser = auth.currentUser;
-    if (currentUser && currentUser.uid === session.user.id) {
-      console.log('✅ Firebase auth already synced');
-      return currentUser;
-    }
+  useEffect(() => {
+    if (status === 'loading') return;
 
-    console.log('🔑 NextAuth session found:', {
-      userId: session.user.id,
-      email: session.user.email,
-      provider: session.user.image // Googleの場合はimage URLが存在
-    });
+    const syncFirebaseAuth = async () => {
+      if (session?.user) {
+        try {
+          setSyncStatus('syncing');
+          
+          // 既にFirebaseで認証済みかチェック
+          const currentUser = auth.currentUser;
+          if (currentUser && currentUser.uid === session.user.id) {
+            console.log('✅ Already synced with Firebase Auth');
+            setSyncStatus('synced');
+            return;
+          }
 
-    // Firebase カスタムトークンが必要な場合のプレースホルダー
-    // 現在はGoogle OAuth を使用しているので、直接Firebase Authが同期されるはず
-    
-    // Google OAuth で Firebase Auth が自動的に同期されるまで待機
-    return new Promise((resolve, reject) => {
-      let attempts = 0;
-      const maxAttempts = 10;
-      
-      const checkAuth = () => {
-        attempts++;
-        const user = auth.currentUser;
-        
-        if (user) {
-          console.log('✅ Firebase auth synchronized:', user.uid);
-          resolve(user);
-        } else if (attempts >= maxAttempts) {
-          console.error('❌ Firebase auth sync timeout');
-          reject(new Error('Firebase auth sync failed'));
-        } else {
-          console.log(`🔄 Waiting for Firebase auth sync... (${attempts}/${maxAttempts})`);
-          setTimeout(checkAuth, 500);
+          console.log('🔄 Syncing NextAuth session to Firebase Auth...');
+          
+          // カスタムトークンAPIを呼び出し
+          const response = await fetch('/api/auth/firebase-token', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+
+          const data = await response.json();
+          
+          if (!response.ok) {
+            if (data.fallback) {
+              // Admin SDKが利用できない場合はスキップ
+              console.log('⚠️ Firebase Admin SDK not available, skipping sync');
+              setSyncStatus('idle');
+              return;
+            }
+            throw new Error(data.error || 'Token generation failed');
+          }
+
+          // カスタムトークンでFirebase Authにサインイン
+          await signInWithCustomToken(auth, data.customToken);
+          
+          console.log('✅ Firebase Auth sync successful');
+          setSyncStatus('synced');
+          setError(null);
+
+        } catch (error: any) {
+          console.error('❌ Firebase Auth sync failed:', error);
+          setSyncStatus('failed');
+          setError(error.message);
         }
-      };
-      
-      checkAuth();
-    });
+      } else {
+        // セッションがない場合はFirebase Authからサインアウト
+        if (auth.currentUser) {
+          console.log('🔄 Signing out from Firebase Auth...');
+          await signOut(auth);
+        }
+        setSyncStatus('idle');
+      }
+    };
 
-  } catch (error) {
-    console.error('❌ Firebase auth sync error:', error);
-    throw error;
-  }
+    syncFirebaseAuth();
+  }, [session, status]);
+
+  return {
+    syncStatus,
+    error,
+    isAuthenticated: !!session,
+    firebaseUser: auth.currentUser,
+    nextAuthUser: session?.user
+  };
 }
 
-// Firebase認証状態を強制的にリフレッシュ
-export async function refreshFirebaseAuth() {
+// 手動同期関数
+export async function syncFirebaseAuthManually(): Promise<boolean> {
   try {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('No authenticated user');
+    const response = await fetch('/api/auth/firebase-token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      if (data.fallback) {
+        console.log('⚠️ Firebase Admin SDK not available, skipping manual sync');
+        return false;
+      }
+      throw new Error(data.error || 'Token generation failed');
     }
 
-    console.log('🔄 Refreshing Firebase auth token...');
-    const token = await user.getIdToken(true); // forceRefresh = true
-    console.log('✅ Firebase token refreshed');
-    return token;
+    const data = await response.json();
+    await signInWithCustomToken(auth, data.customToken);
     
-  } catch (error) {
-    console.error('❌ Firebase token refresh failed:', error);
-    throw error;
+    console.log('✅ Manual Firebase Auth sync successful');
+    return true;
+    
+  } catch (error: any) {
+    console.error('❌ Manual Firebase Auth sync failed:', error);
+    return false;
   }
 }
